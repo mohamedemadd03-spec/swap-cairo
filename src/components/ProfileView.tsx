@@ -1,10 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { User } from 'firebase/auth';
 import { Garment, HubLocation, SwapOffer } from '../types/swap';
 import { soundFX, triggerHaptic } from '../hooks/useSoundFX';
 import { hapticEngine } from '../services/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
-import { UserTasteProfile, summarizeUserStyleVibe } from '../services/recommendationEngine';
 
 interface ProfileViewProps {
   currentHub: HubLocation;
@@ -20,9 +19,6 @@ interface ProfileViewProps {
   onResetDemoData?: () => void;
   onSignOut?: () => void;
   onOpenLiveRadar?: () => void;
-  tasteProfile?: UserTasteProfile;
-  allGarments?: Garment[];
-  onRequestSwap?: (garment: Garment) => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -39,9 +35,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onResetDemoData,
   onSignOut,
   onOpenLiveRadar,
-  tasteProfile,
-  allGarments = [],
-  onRequestSwap,
 }) => {
   const [proximityAudioEnabled, setProximityAudioEnabled] = useState(true);
   const [hapticsEnabled, setHapticsEnabled] = useState(() => hapticEngine.getEnabled());
@@ -50,20 +43,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const level = Math.floor(userTrustPoints / 100);
   const nextLevelProgress = userTrustPoints % 100;
-
-  const likedGarments = useMemo(() => {
-    if (tasteProfile && allGarments && allGarments.length > 0) {
-      const likedSet = new Set(tasteProfile.likedGarmentIds);
-      const fromTaste = allGarments.filter((g) => likedSet.has(g.id));
-      if (fromTaste.length > 0) return fromTaste;
-    }
-    return stashedGarments;
-  }, [tasteProfile, allGarments, stashedGarments]);
-
-  const styleVibeSummary = useMemo(() => {
-    if (!tasteProfile) return null;
-    return summarizeUserStyleVibe(tasteProfile);
-  }, [tasteProfile]);
 
   return (
     <main className="flex-1 flex flex-col relative w-full pt-16 pb-28 bg-[#131315] max-w-md mx-auto">
@@ -199,8 +178,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 : 'text-[#c5c9ac] hover:text-white'
             }`}
           >
-            <span className="material-symbols-outlined text-[12px]">favorite</span>
-            <span>{t('likedFits')} ({likedGarments.length})</span>
+            <span className="material-symbols-outlined text-[12px]">bookmark</span>
+            <span>{t('savedTab')} ({stashedGarments.length})</span>
           </button>
 
           <button
@@ -418,60 +397,32 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         )}
 
-        {/* SECTION 2: SAVED & LIKED STREETWEAR FITS */}
+        {/* SECTION 2: SAVED WATCHLIST */}
         {activeSection === 'watchlist' && (
           <section className="flex flex-col gap-2 font-mono animate-in fade-in">
-            {styleVibeSummary && (
-              <div className="p-2.5 rounded-xl bg-[#201f21] border border-[#caf300]/30 flex items-center justify-between text-xs mb-1">
-                <span className="text-[#c5c9ac]">
-                  {language === 'ar' ? '🎯 ستايلك المفضل:' : '🎯 Curated Vibe:'}
-                </span>
-                <span className="text-[#caf300] font-bold truncate max-w-[60%] text-right">
-                  {styleVibeSummary}
-                </span>
-              </div>
-            )}
-            {likedGarments.length === 0 ? (
+            {stashedGarments.length === 0 ? (
               <div className="p-6 rounded-xl bg-[#201f21] border border-[#26262e] text-center text-xs text-[#c5c9ac]">
-                {language === 'ar'
-                  ? 'لسه معملتش سواب لأي قطعة ❤️ اسحب يمين في الاستكشاف عشان تتجمع هنا وتطلب تبديلها براحتك'
-                  : 'No liked fits yet. Swipe right on cards in Discover to curate your taste profile here.'}
+                No saved garments yet. Tap the bookmark icon in Discover to save pieces here.
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
-                {likedGarments.map((g) => (
+                {stashedGarments.map((g) => (
                   <div
                     key={g.id}
-                    className="p-2.5 bg-[#201f21] border border-[#26262e] rounded-xl flex flex-col justify-between gap-2 hover:border-[#caf300] transition-colors"
+                    onClick={() => onSelectGarment(g)}
+                    className="p-2 bg-[#201f21] border border-[#26262e] rounded-xl flex flex-col gap-1.5 cursor-pointer hover:border-[#caf300] transition-colors"
                   >
                     <div
-                      onClick={() => onSelectGarment(g)}
-                      className="w-full h-28 bg-cover bg-center rounded-lg border border-white/5 cursor-pointer relative"
+                      className="w-full h-28 bg-cover bg-center rounded-lg border border-white/5"
                       style={{ backgroundImage: `url('${g.imageUrl}')` }}
-                    >
-                      <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[9px] font-mono font-bold text-[#caf300]">
-                        {g.estValue} EGP
-                      </span>
+                    />
+                    <div className="font-display font-bold text-xs uppercase text-white truncate">
+                      {g.title}
                     </div>
-                    <div>
-                      <div className="font-display font-bold text-xs uppercase text-white truncate">
-                        {g.title}
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] font-mono text-[#c5c9ac] mt-0.5">
-                        <span>Size {g.size}</span>
-                        <span className="text-[#8f9378]">@{g.owner.handle}</span>
-                      </div>
+                    <div className="flex items-center justify-between text-[10px] font-mono text-[#c5c9ac]">
+                      <span>Size {g.size}</span>
+                      <span className="text-[#caf300] font-bold">{g.estValue} EGP</span>
                     </div>
-                    {onRequestSwap && (
-                      <button
-                        type="button"
-                        onClick={() => onRequestSwap(g)}
-                        className="w-full py-1.5 rounded-lg bg-[#caf300] hover:bg-[#d9ff1a] text-[#171e00] font-mono text-[10px] font-bold uppercase flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm"
-                      >
-                        <span className="material-symbols-outlined text-[13px]">sync_alt</span>
-                        <span>{t('requestSwap')}</span>
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
