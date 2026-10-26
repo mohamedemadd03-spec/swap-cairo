@@ -34,6 +34,7 @@ import { LanguageSelectModal } from './components/modals/LanguageSelectModal';
 import { LiveRadarModal } from './components/modals/LiveRadarModal';
 import { InteractiveNotificationBanner } from './components/notifications/InteractiveNotificationBanner';
 import { telemetryService } from './services/telemetry';
+import { tagClarityUser } from './services/clarity';
 
 import {
   INITIAL_GARMENTS,
@@ -167,6 +168,7 @@ export default function App() {
       summaryEn: 'Swapper joined session',
       userHandle: handle,
     });
+    tagClarityUser(handle, currentUser?.email || undefined);
 
     const hbInterval = setInterval(() => {
       telemetryService.trackHeartbeat(handle);
