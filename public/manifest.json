@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "swap. — Raw Streetwear Barter Exchange",
+  "short_name": "swap.",
+  "description": "1-to-1 verified streetwear barter exchange with Balanced AI moderation, live GPS radar, and in-person QR Handshake.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#131315",
+  "theme_color": "#131315",
+  "categories": ["shopping", "lifestyle"],
+  "icons": [
+    {
+      "src": "/assets/aistudio/Image_1_3ba5c951.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/aistudio/Image_3_29fa4c93.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

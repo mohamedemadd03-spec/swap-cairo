@@ -1,0 +1,205 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered circular fashion user profile and authentication state",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Display name or streetwear handle"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar photo URL"
+        },
+        "isPro": {
+          "type": "boolean",
+          "description": "Whether user is a verified Pro Swapper"
+        },
+        "rating": {
+          "type": "number",
+          "description": "Trust rating from 0.0 to 5.0"
+        },
+        "swapCount": {
+          "type": "number",
+          "description": "Total completed swaps"
+        },
+        "co2SavedKg": {
+          "type": "number",
+          "description": "Total carbon footprint saved in kg"
+        },
+        "preferredHub": {
+          "type": "string",
+          "description": "Selected local hub identifier"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of user creation"
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "Garment": {
+      "title": "Garment",
+      "description": "Wardrobe item or discoverable garment in the circular marketplace",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "brand": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "estValue": {
+          "type": "number"
+        },
+        "currency": {
+          "type": "string",
+          "enum": ["EGP", "USD", "EUR"]
+        },
+        "condition": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "size": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "category": {
+          "type": "string",
+          "enum": ["hoodie", "jacket", "denim", "shoes", "tees", "flannel", "accessories"]
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "ownerUid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["available", "pending", "hot", "inquiries", "swapped"]
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "title", "estValue", "ownerUid", "status"]
+    },
+    "SwapOffer": {
+      "title": "SwapOffer",
+      "description": "Active barter proposal or scheduled physical hub handover",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "proposerUid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "receiverUid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "offeredItemId": {
+          "type": "string"
+        },
+        "targetItemId": {
+          "type": "string"
+        },
+        "cashTopUp": {
+          "type": "number"
+        },
+        "topUpBy": {
+          "type": "string",
+          "enum": ["you", "partner", "none"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "accepted", "scheduled_hub", "completed", "declined"]
+        },
+        "hubLocation": {
+          "type": "string"
+        },
+        "securityPassCode": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "proposerUid", "offeredItemId", "targetItemId", "status"]
+    },
+    "FiberAnalysis": {
+      "title": "FiberAnalysis",
+      "description": "Biomaterial and textile chemical structure analysis using bioscience standards",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "garmentId": {
+          "type": "string"
+        },
+        "fiberType": {
+          "type": "string"
+        },
+        "chemicalFormula": {
+          "type": "string"
+        },
+        "pubchemCid": {
+          "type": "number"
+        },
+        "biodegradationMonths": {
+          "type": "number"
+        },
+        "environmentalGrade": {
+          "type": "string"
+        },
+        "provenance": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "garmentId", "fiberType"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Public and private user account states"
+    },
+    "/garments/{garmentId}": {
+      "schema": { "$ref": "#/entities/Garment" },
+      "description": "All discoverable garments and user wardrobe items"
+    },
+    "/offers/{offerId}": {
+      "schema": { "$ref": "#/entities/SwapOffer" },
+      "description": "Trade proposals and physical hub handovers"
+    },
+    "/fiber_analyses/{analysisId}": {
+      "schema": { "$ref": "#/entities/FiberAnalysis" },
+      "description": "Textile bioscience and material degradation records"
+    }
+  }
+}

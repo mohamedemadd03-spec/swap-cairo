@@ -1,0 +1,291 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches request.auth.uid)
+    // Fields:
+    //   - uid: string (required, immutable, matches userId)
+    //   - email: string (optional, <= 254 chars, PII - owner read only)
+    //   - phoneNumber: string (optional, <= 32 chars, PII - owner read only)
+    //   - authMethod: string (optional, <= 64 chars)
+    //   - displayName: string (required, 1..64 chars)
+    //   - photoURL: string (optional, <= 2048 chars)
+    //   - isPro: bool (optional)
+    //   - rating: number (optional, 0..5)
+    //   - swapCount: number (optional, >= 0)
+    //   - co2SavedKg: number (optional, >= 0)
+    //   - preferredHub: string (optional, <= 128 chars)
+    //   - updatedAt: string (optional, <= 64 chars)
+    //
+    // Collection: garments
+    // Document ID: {garmentId}
+    // Fields:
+    //   - id: string (required, immutable, <= 128 chars)
+    //   - title: string (required, 1..140 chars)
+    //   - brand: string (optional, <= 80 chars)
+    //   - lot: string (optional, <= 40 chars)
+    //   - estValue: number (required, 1..100000)
+    //   - currency: string (optional, <= 10 chars)
+    //   - condition: string (required, <= 40 chars)
+    //   - size: string (required, <= 16 chars)
+    //   - badge: string (optional, <= 64 chars)
+    //   - archiveTag: string (optional, <= 64 chars)
+    //   - distance: string (optional, <= 64 chars)
+    //   - city: string (optional, <= 64 chars)
+    //   - category: string (optional, <= 32 chars)
+    //   - imageUrl: string (required, <= 350000 chars for compressed data URL or HTTPS URL)
+    //   - description: string (optional, <= 1000 chars)
+    //   - angles: map (optional)
+    //   - ownerUid: string (required, immutable on update, matches creator uid)
+    //   - owner: map (required, denormalized public profile summary)
+    //   - tags: list (optional, <= 15 items)
+    //   - status: string (optional, in ['available', 'in_offer', 'locked', 'swapped', 'traded'])
+    //   - createdAt: string (optional, <= 64 chars)
+    //
+    // Collection: offers
+    // Document ID: {offerId}
+    // Fields:
+    //   - id: string (required, immutable, <= 128 chars)
+    //   - proposerUid: string (optional, immutable once set, <= 128 chars)
+    //   - receiverUid: string (optional, <= 128 chars)
+    //   - updatedByUid: string (optional, <= 128 chars)
+    //   - partner: map (optional)
+    //   - yourItem: map (optional)
+    //   - theirItem: map (optional)
+    //   - yourItems: list (optional, <= 10 items)
+    //   - extraItemsOffered: list (optional, <= 10 items)
+    //   - offeredItemId: string (optional, <= 128 chars)
+    //   - targetItemId: string (optional, <= 128 chars)
+    //   - cashTopUp: number (optional, 0..100000)
+    //   - topUpBy: string (optional, in ['you', 'them', 'none'])
+    //   - status: string (optional, in ['pending', 'maybe', 'accepted', 'declined', 'completed'])
+    //   - timestamp: string (optional, <= 64 chars)
+    //   - hubLocation: string (optional, <= 160 chars)
+    //   - agreedLocation: string (optional, <= 160 chars)
+    //   - gpsMeetupPin: map (optional)
+    //   - securityPassCode: string (optional, <= 32 chars)
+    //   - acceptedAt: string (optional, <= 64 chars)
+    //   - lockExpiresAt: string (optional, <= 64 chars)
+    //   - cancellationReason: string (optional, <= 64 chars)
+    //   - isStandingFirm: bool (optional)
+    //   - co2SavedKg: number (optional, >= 0)
+    //   - messages: list (optional, <= 200 items)
+    //   - createdAt: string (optional, <= 64 chars)
+    //   - updatedAt: string (optional, <= 64 chars)
+    //
+    // ===============================================================
+
+    // Global default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in incoming()) || incoming().uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in incoming()) || !('uid' in existing()) || incoming().uid == existing().uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return incoming().keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return incoming().keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !incoming().diff(existing()).affectedKeys().hasAny(fields);
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in incoming()) ||
+        (incoming()[field] is string &&
+         incoming()[field].size() >= minLen &&
+         incoming()[field].size() <= maxLen);
+    }
+
+    function isValidList(listData, maxSize) {
+      return listData is list && listData.size() <= maxSize;
+    }
+
+    // ===============================================================
+    // Domain Validators (Used in BOTH create and update)
+    // ===============================================================
+    function isValidUser(data) {
+      return hasOnlyAllowedFields([
+          'uid', 'email', 'phoneNumber', 'authMethod', 'displayName',
+          'photoURL', 'isPro', 'rating', 'swapCount', 'co2SavedKg',
+          'preferredHub', 'updatedAt'
+        ]) &&
+        hasRequiredFields(['uid', 'displayName']) &&
+        data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 64 &&
+        isValidOptionalString('email', 0, 254) &&
+        isValidOptionalString('phoneNumber', 0, 32) &&
+        isValidOptionalString('authMethod', 0, 64) &&
+        isValidOptionalString('photoURL', 0, 2048) &&
+        isValidOptionalString('preferredHub', 0, 128) &&
+        isValidOptionalString('updatedAt', 0, 64) &&
+        (!('isPro' in data) || data.isPro is bool) &&
+        (!('rating' in data) || (data.rating is number && data.rating >= 0 && data.rating <= 5)) &&
+        (!('swapCount' in data) || (data.swapCount is number && data.swapCount >= 0 && data.swapCount <= 100000)) &&
+        (!('co2SavedKg' in data) || (data.co2SavedKg is number && data.co2SavedKg >= 0 && data.co2SavedKg <= 1000000));
+    }
+
+    function isValidGarment(data) {
+      return hasOnlyAllowedFields([
+          'id', 'title', 'brand', 'lot', 'estValue', 'currency',
+          'condition', 'size', 'badge', 'archiveTag', 'distance',
+          'city', 'category', 'imageUrl', 'description', 'angles',
+          'ownerUid', 'owner', 'tags', 'status', 'createdAt'
+        ]) &&
+        hasRequiredFields(['id', 'title', 'estValue', 'size', 'imageUrl', 'ownerUid']) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.estValue is number && data.estValue >= 1 && data.estValue <= 100000 &&
+        data.size is string && data.size.size() >= 1 && data.size.size() <= 16 &&
+        data.imageUrl is string && data.imageUrl.size() >= 1 && data.imageUrl.size() <= 350000 &&
+        data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+        isValidOptionalString('brand', 0, 80) &&
+        isValidOptionalString('lot', 0, 40) &&
+        isValidOptionalString('currency', 0, 10) &&
+        isValidOptionalString('condition', 0, 40) &&
+        isValidOptionalString('badge', 0, 64) &&
+        isValidOptionalString('archiveTag', 0, 64) &&
+        isValidOptionalString('distance', 0, 64) &&
+        isValidOptionalString('city', 0, 64) &&
+        isValidOptionalString('category', 0, 32) &&
+        isValidOptionalString('description', 0, 1000) &&
+        isValidOptionalString('createdAt', 0, 64) &&
+        (!('status' in data) || data.status in ['available', 'in_offer', 'locked', 'swapped', 'traded']) &&
+        (!('tags' in data) || isValidList(data.tags, 15)) &&
+        (!('owner' in data) || data.owner is map) &&
+        (!('angles' in data) || data.angles is map);
+    }
+
+    function isValidOffer(data) {
+      return hasOnlyAllowedFields([
+          'id', 'proposerUid', 'receiverUid', 'updatedByUid', 'partner',
+          'yourItem', 'theirItem', 'yourItems', 'extraItemsOffered',
+          'offeredItemId', 'targetItemId', 'cashTopUp', 'topUpBy',
+          'status', 'timestamp', 'hubLocation', 'agreedLocation',
+          'gpsMeetupPin', 'securityPassCode', 'acceptedAt',
+          'lockExpiresAt', 'cancellationReason', 'isStandingFirm',
+          'co2SavedKg', 'messages', 'createdAt', 'updatedAt', 'direction'
+        ]) &&
+        hasRequiredFields(['id']) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+        isValidOptionalString('proposerUid', 1, 128) &&
+        isValidOptionalString('receiverUid', 1, 128) &&
+        isValidOptionalString('updatedByUid', 1, 128) &&
+        isValidOptionalString('offeredItemId', 1, 128) &&
+        isValidOptionalString('targetItemId', 1, 128) &&
+        isValidOptionalString('timestamp', 0, 64) &&
+        isValidOptionalString('hubLocation', 0, 160) &&
+        isValidOptionalString('agreedLocation', 0, 160) &&
+        isValidOptionalString('securityPassCode', 0, 32) &&
+        isValidOptionalString('acceptedAt', 0, 64) &&
+        isValidOptionalString('lockExpiresAt', 0, 64) &&
+        isValidOptionalString('cancellationReason', 0, 64) &&
+        isValidOptionalString('createdAt', 0, 64) &&
+        isValidOptionalString('updatedAt', 0, 64) &&
+        isValidOptionalString('direction', 0, 16) &&
+        (!('status' in data) || data.status in ['pending', 'maybe', 'accepted', 'declined', 'completed']) &&
+        (!('topUpBy' in data) || data.topUpBy in ['you', 'them', 'none']) &&
+        (!('cashTopUp' in data) || (data.cashTopUp is number && data.cashTopUp >= 0 && data.cashTopUp <= 100000)) &&
+        (!('co2SavedKg' in data) || (data.co2SavedKg is number && data.co2SavedKg >= 0 && data.co2SavedKg <= 1000)) &&
+        (!('isStandingFirm' in data) || data.isStandingFirm is bool) &&
+        (!('messages' in data) || isValidList(data.messages, 200)) &&
+        (!('yourItems' in data) || isValidList(data.yourItems, 10)) &&
+        (!('extraItemsOffered' in data) || isValidList(data.extraItemsOffered, 10));
+    }
+
+    function isValidFiberAnalysis(data) {
+      return hasOnlyAllowedFields([
+          'id', 'garmentTitle', 'material', 'polymerName',
+          'chemicalFormula', 'pubchemCid', 'circularScore', 'createdAt'
+        ]) &&
+        isValidOptionalString('garmentTitle', 1, 140) &&
+        isValidOptionalString('material', 1, 64) &&
+        isValidOptionalString('polymerName', 0, 128) &&
+        isValidOptionalString('chemicalFormula', 0, 128) &&
+        isValidOptionalString('circularScore', 0, 64) &&
+        isValidOptionalString('createdAt', 0, 64);
+    }
+
+    // Connectivity verification path
+    match /test/{testId} {
+      allow read: if isAuthenticated() || testId == 'connection';
+      allow write: if false;
+    }
+
+    // Users Collection (PII Protected: Owner-only read/write)
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && uidUnchanged() && isValidUser(incoming());
+      allow update: if isOwner(userId) && uidNotModified() && isValidUser(incoming());
+      allow delete: if isOwner(userId);
+    }
+
+    // Garments / Wardrobe Collection
+    match /garments/{garmentId} {
+      allow read: if true;
+      allow create: if isAuthenticated() &&
+        incoming().ownerUid == request.auth.uid &&
+        isValidGarment(incoming());
+      allow update: if isAuthenticated() &&
+        existing().ownerUid == request.auth.uid &&
+        areImmutableFieldsUnchanged(['id', 'ownerUid', 'createdAt']) &&
+        isValidGarment(incoming());
+      allow delete: if isAuthenticated() &&
+        existing().ownerUid == request.auth.uid;
+    }
+
+    // Swap Offers Collection
+    match /offers/{offerId} {
+      allow read: if true;
+      allow create: if isAuthenticated() &&
+        (!('proposerUid' in incoming()) || incoming().proposerUid == request.auth.uid) &&
+        isValidOffer(incoming());
+      allow update: if isAuthenticated() &&
+        areImmutableFieldsUnchanged(['id', 'proposerUid', 'createdAt']) &&
+        isValidOffer(incoming());
+      allow delete: if isAuthenticated() &&
+        ('proposerUid' in existing() && existing().proposerUid == request.auth.uid);
+    }
+
+    // Bioscience Fiber Analysis Collection
+    match /fiber_analyses/{analysisId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidFiberAnalysis(incoming());
+      allow delete: if false;
+    }
+  }
+}

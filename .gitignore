@@ -1,0 +1,26 @@
+# Dependencies & Build Outputs
+node_modules/
+build/
+dist/
+coverage/
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Internal Tooling & AI Artifacts
+.aistudio/
+.antigravity/
+
+# Local Data & Environment Secrets
+.data/
+.env*
+!.env.example
+
+# Ephemeral Root Screenshots & Bundles
+/*.png
+*.zip
+bun.lock

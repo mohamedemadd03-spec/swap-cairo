@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body, #root {
+    width: 100%;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    background-color: #131315;
+    color: #e5e1e4;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Inter', sans-serif;
+  }
+  body {
+    overscroll-behavior-y: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+  .pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px); }
+  .pt-safe { padding-top: max(env(safe-area-inset-top, 0px), 12px); }
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* swap. Design System Typography with Arabic Cairo support */
+.font-display {
+  font-family: 'Outfit', 'Cairo', sans-serif;
+}
+
+.font-body {
+  font-family: 'Inter', 'Cairo', sans-serif;
+}
+
+.font-mono,
+.font-label-code,
+.font-label-metric,
+.font-label-caps {
+  font-family: 'JetBrains Mono', 'Cairo', monospace;
+}
+
+/* Base font for Arabic mode */
+html[lang="ar"],
+html[dir="rtl"],
+html[lang="ar"] body,
+html[dir="rtl"] body {
+  font-family: 'Cairo', sans-serif;
+}
+
+[lang="ar"] .font-display,
+[dir="rtl"] .font-display,
+[lang="ar"] .font-mono,
+[dir="rtl"] .font-mono,
+[lang="ar"] .font-sans,
+[dir="rtl"] .font-sans,
+[lang="ar"] .font-body,
+[dir="rtl"] .font-body,
+[lang="ar"] button,
+[dir="rtl"] button,
+[lang="ar"] input,
+[dir="rtl"] input,
+[lang="ar"] textarea,
+[dir="rtl"] textarea {
+  font-family: 'Cairo', sans-serif;
+  letter-spacing: normal;
+}
+
+/* Material Symbols Icon Font Protection - NEVER OVERRIDE WITH TEXT FONTS */
+.material-symbols-outlined,
+[lang="ar"] .material-symbols-outlined,
+[dir="rtl"] .material-symbols-outlined,
+html[lang="ar"] .material-symbols-outlined,
+html[dir="rtl"] .material-symbols-outlined,
+button .material-symbols-outlined,
+[lang="ar"] button .material-symbols-outlined,
+[dir="rtl"] button .material-symbols-outlined,
+span.material-symbols-outlined,
+[lang="ar"] span.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined' !important;
+  font-weight: normal !important;
+  font-style: normal !important;
+  line-height: 1 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  display: inline-block !important;
+  white-space: nowrap !important;
+  word-wrap: normal !important;
+  direction: ltr !important;
+  -webkit-font-feature-settings: 'liga' !important;
+  font-feature-settings: 'liga' !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+
+/* Color Surface Classes from swap. DESIGN.md */
+.bg-surface {
+  background-color: #131315;
+}
+.bg-surface-lowest {
+  background-color: #0e0e10;
+}
+.bg-surface-low {
+  background-color: #1c1b1d;
+}
+.bg-surface-container {
+  background-color: #201f21;
+}
+.bg-surface-high {
+  background-color: #2a2a2c;
+}
+.bg-surface-highest {
+  background-color: #353437;
+}
+
+.text-primary-fixed {
+  color: #caf300;
+}
+.bg-primary-fixed {
+  background-color: #caf300;
+}
+.text-on-primary-fixed {
+  color: #171e00;
+}
+
+.border-surface-border {
+  border-color: #26262e;
+}
+
+/* Range input styling for Sweetener Equalizer */
+input[type=range]::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #caf300;
+  box-shadow: 0 0 12px rgba(202, 243, 0, 0.5);
+  cursor: pointer;
+  border: 2px solid #131315;
+}

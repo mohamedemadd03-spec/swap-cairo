@@ -1,0 +1,49 @@
+name: SWAP Production CI, Security Audit & Test Suite
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  verify-and-audit:
+    name: Typecheck, Unit Tests, Security Audit & Production Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install --no-fund
+
+      - name: Security Audit (Zero High/Critical Vulnerabilities)
+        run: npm audit --audit-level=high
+
+      - name: TypeScript Strict Typecheck
+        run: npm run lint
+
+      - name: Run Unit & Trade Logic Test Suite
+        run: npm test
+
+      - name: Verify Firestore Security Rules Schema & Validators
+        run: |
+          grep -q "isValidUser" firestore.rules
+          grep -q "isValidGarment" firestore.rules
+          grep -q "isValidOffer" firestore.rules
+          grep -q "allow read: if isOwner(userId);" firestore.rules
+
+      - name: Build Production Bundle
+        run: npm run build
