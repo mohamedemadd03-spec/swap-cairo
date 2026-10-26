@@ -370,7 +370,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
     <main className="flex-1 flex flex-col relative w-full pt-16 pb-28 bg-[#131315] max-w-md mx-auto">
       <BrutalistBurst active={burstActive} type="swap" onComplete={() => setBurstActive(false)} />
 
-      {/* Clean Top Header Bar (Trust Pts removed from Deals as requested) */}
+      {/* Clean Top Header Bar */}
       <div className="px-4 pt-3 pb-2 flex items-center justify-between bg-[#0e0e10] border-b border-[#26262e]">
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-[#caf300] animate-pulse" />
@@ -378,10 +378,6 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
             {activeChatOffer ? `${t('chatWith')}${activeChatOffer.partner.handle}` : t('dealsQueue')}
           </span>
         </div>
-        <span className="font-mono text-[10px] text-[#8f9378] uppercase flex items-center gap-1">
-          <span className="material-symbols-outlined text-[13px] text-[#caf300]">radar</span>
-          <span>{t('autoSonar')}</span>
-        </span>
       </div>
 
       {/* MODE 1: ULTRA-CLEAN 2-PART WHATSAPP-STYLE TRADE CHAT */}
@@ -699,7 +695,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                             </span>
                           </div>
                           <p className="font-mono text-[9.5px] text-[#8f9378] leading-snug">
-                            Auto 100m proximity sonar active when you approach this spot.
+                            GPS meetup spot agreed between swappers.
                           </p>
                           <div className="grid grid-cols-2 gap-1.5 pt-1">
                             <a
