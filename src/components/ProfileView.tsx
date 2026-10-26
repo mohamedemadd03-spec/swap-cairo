@@ -4,6 +4,7 @@ import { Garment, HubLocation, SwapOffer } from '../types/swap';
 import { soundFX, triggerHaptic } from '../hooks/useSoundFX';
 import { hapticEngine } from '../services/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface ProfileViewProps {
   currentHub: HubLocation;
@@ -575,6 +576,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </button>
             </div>
           )}
+
+          {/* PWA Mobile Installation Trigger */}
+          <PWAInstallButton />
         </section>
 
         {/* Closet & Account Session Controls */}
