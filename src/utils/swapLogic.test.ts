@@ -191,5 +191,116 @@ test('hapticEngine handles all haptic pattern types gracefully in node/headless 
   assert.equal(hapticEngine.getEnabled(), initialEnabled);
 });
 
+test('recommendationEngine records taste affinity and adapts ranking dynamically', async () => {
+  const {
+    recordSwipeAction,
+    calculateGarmentTasteMatch,
+    rankGarmentsForDiscovery,
+    resetDeckForFreshScan,
+  } = await import('../services/recommendationEngine');
+
+  const baseProfile = {
+    likedGarmentIds: [],
+    passedGarmentIds: [],
+    brandAffinities: {},
+    categoryAffinities: {},
+    tagAffinities: {},
+    avgLikedPrice: 500,
+    totalSwipes: 0,
+    lastUpdated: Date.now(),
+  };
+
+  const sampleGarmentA: Garment = {
+    id: 'g-test-nike',
+    title: 'Vintage Nike Swoosh Hoodie',
+    brand: 'Nike',
+    category: 'hoodie',
+    estValue: 600,
+    currency: 'EGP',
+    distance: '2.5 KM',
+    city: 'Cairo',
+    lot: 'LOT-1',
+    condition: '9.5/10',
+    size: 'L',
+    badge: 'OG',
+    archiveTag: 'VNTG',
+    tags: ['#RETRO', '#HOODIE'],
+    imageUrl: 'https://example.com/nike.jpg',
+    description: 'Fresh hoodie',
+    owner: {
+      name: 'Ali',
+      handle: 'ali_cairo',
+      isPro: true,
+      rating: 4.9,
+      swapCount: 15,
+      avatarUrl: '',
+      location: 'Maadi',
+    },
+  };
+
+  const sampleGarmentB: Garment = {
+    id: 'g-test-corteiz',
+    title: 'Corteiz Cargo Pants',
+    brand: 'Corteiz',
+    category: 'denim',
+    estValue: 1200,
+    currency: 'EGP',
+    distance: '4.0 KM',
+    city: 'Giza',
+    lot: 'LOT-2',
+    condition: '9.0/10',
+    size: 'M',
+    badge: 'OG',
+    archiveTag: 'DRIP',
+    tags: ['#STREET', '#CARGO'],
+    imageUrl: 'https://example.com/corteiz.jpg',
+    description: 'Black cargo pants',
+    owner: {
+      name: 'Karim',
+      handle: 'karim_fits',
+      isPro: false,
+      rating: 4.8,
+      swapCount: 8,
+      avatarUrl: '',
+      location: 'Zamalek',
+    },
+  };
+
+  // 1. Record Like for Nike hoodie
+  const profileAfterLike = recordSwipeAction(baseProfile, sampleGarmentA, 'like');
+  assert.equal(profileAfterLike.likedGarmentIds.includes('g-test-nike'), true);
+  assert.ok((profileAfterLike.brandAffinities['nike'] || 0) >= 3);
+  assert.ok((profileAfterLike.categoryAffinities['hoodie'] || 0) >= 2);
+
+  // 2. Score should be higher for Nike items than unrelated items
+  const nikeScore = calculateGarmentTasteMatch(sampleGarmentA, profileAfterLike);
+  const corteizScore = calculateGarmentTasteMatch(sampleGarmentB, profileAfterLike);
+  assert.ok(nikeScore > corteizScore, `Nike score (${nikeScore}) should exceed Corteiz score (${corteizScore})`);
+
+  // 3. rankGarmentsForDiscovery excludes swiped items when excludeSwiped is true
+  const { rankedDeck: unswipedDeck } = rankGarmentsForDiscovery(
+    [sampleGarmentA, sampleGarmentB],
+    profileAfterLike,
+    { excludeSwiped: true }
+  );
+  assert.equal(unswipedDeck.some((g) => g.id === 'g-test-nike'), false);
+  assert.equal(unswipedDeck.some((g) => g.id === 'g-test-corteiz'), true);
+
+  // 4. rankGarmentsForDiscovery includes swiped items when excludeSwiped is false (e.g. for grid mode)
+  const { rankedDeck: allDeck } = rankGarmentsForDiscovery(
+    [sampleGarmentA, sampleGarmentB],
+    profileAfterLike,
+    { excludeSwiped: false }
+  );
+  assert.equal(allDeck.length, 2);
+
+  // 5. Reset passes
+  const profileWithPass = recordSwipeAction(profileAfterLike, sampleGarmentB, 'pass');
+  assert.equal(profileWithPass.passedGarmentIds.includes('g-test-corteiz'), true);
+  const profileReset = resetDeckForFreshScan(profileWithPass);
+  assert.equal(profileReset.passedGarmentIds.length, 0);
+  assert.equal(profileReset.likedGarmentIds.includes('g-test-nike'), true); // keeps likes
+});
+
 
 

@@ -34,6 +34,12 @@ import { LanguageSelectModal } from './components/modals/LanguageSelectModal';
 import { LiveRadarModal } from './components/modals/LiveRadarModal';
 import { InteractiveNotificationBanner } from './components/notifications/InteractiveNotificationBanner';
 import { telemetryService } from './services/telemetry';
+import {
+  loadTasteProfile,
+  recordSwipeAction,
+  resetDeckForFreshScan,
+  UserTasteProfile,
+} from './services/recommendationEngine';
 
 import {
   INITIAL_GARMENTS,
@@ -135,6 +141,7 @@ export default function App() {
   // Data states (hydrated from localStorage + Server DB)
   const [garments, setGarments] = useState<Garment[]>(initialHydrated.garments);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [tasteProfile, setTasteProfile] = useState<UserTasteProfile>(() => loadTasteProfile());
   const [wardrobe, setWardrobe] = useState<WardrobeItem[]>(initialHydrated.wardrobe);
   const [wishlist, setWishlist] = useState<WishlistItem[]>(INITIAL_WISHLIST);
   const [offers, setOffers] = useState<SwapOffer[]>(initialHydrated.offers);
@@ -410,53 +417,25 @@ export default function App() {
     }
   };
 
+  // 1-Tap SWAP / Like: Updates taste algorithm, saves to liked fits, and advances cleanly without prematurely guessing an offer
   const handleSwipeRight = (garment: Garment) => {
-    const availablePieces = wardrobe.filter((w) => w.status === 'available');
-    if (availablePieces.length === 0) {
-      setIsAddItemOpen(true);
-      return;
-    }
-
     setCurrentIndex((prev) => prev + 1);
-
-    const yourPiece = availablePieces[0] || wardrobe[0];
-
-    const newOffer: SwapOffer = {
-      id: `swap-${Date.now()}`,
-      partner: garment.owner,
-      theirItem: {
-        id: garment.id,
-        title: garment.title,
-        imageUrl: garment.imageUrl,
-        value: garment.estValue,
-        size: garment.size,
-      },
-      yourItem: {
-        id: yourPiece.id,
-        title: yourPiece.title,
-        imageUrl: yourPiece.imageUrl,
-        value: yourPiece.value,
-        size: yourPiece.size,
-      },
-      cashTopUp: Math.abs(garment.estValue - yourPiece.value),
-      topUpBy: garment.estValue > yourPiece.value ? 'you' : 'partner',
-      status: 'pending',
-      hubLocation: `${currentHub.name} (Station #04)`,
-      scheduledTime: 'Today at 6:30 PM',
-      securityPassCode: `SWP-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(10 + Math.random() * 90)}`,
-      timestamp: 'Just now',
-      co2SavedKg: 4.8,
-    };
-
-    setOffers((prev) => [newOffer, ...prev]);
-    if (currentUser?.uid) {
-      syncOfferToFirestore(newOffer);
-    }
-    setActiveTab('matches');
+    setTasteProfile((prev) => recordSwipeAction(prev, garment, 'like'));
+    setGarments((prev) =>
+      prev.map((g) => (g.id === garment.id ? { ...g, isStashed: true } : g))
+    );
   };
 
-  const handleSwipeLeft = (_garment: Garment) => {
+  // 1-Tap PASS / Skip: Feeds disinterest to taste algorithm and advances cleanly
+  const handleSwipeLeft = (garment: Garment) => {
     setCurrentIndex((prev) => prev + 1);
+    setTasteProfile((prev) => recordSwipeAction(prev, garment, 'pass'));
+  };
+
+  // Reset Passes when user finishes the active Cairo deck
+  const handleResetRadarPasses = () => {
+    setTasteProfile((prev) => resetDeckForFreshScan(prev));
+    setCurrentIndex(0);
   };
 
   const handleToggleBookmark = (garment: Garment) => {
@@ -1463,11 +1442,13 @@ export default function App() {
       {/* Main Content Router */}
       {activeTab === 'discover' && (
         <DiscoverView
-          garments={filteredGarments}
+          garments={garments}
           userWardrobe={wardrobe}
           currentIndex={currentIndex}
+          tasteProfile={tasteProfile}
           onSwipeRight={handleSwipeRight}
           onSwipeLeft={handleSwipeLeft}
+          onResetRadarPasses={handleResetRadarPasses}
           onToggleBookmark={handleToggleBookmark}
           onOpenItemDetail={(g) => {
             setModalSelectedItem(g);
@@ -1536,6 +1517,9 @@ export default function App() {
           allHubs={HUB_LOCATIONS}
           onSelectHub={setCurrentHub}
           stashedGarments={stashedGarments}
+          tasteProfile={tasteProfile}
+          allGarments={garments}
+          onRequestSwap={handleOpenRequestSwap}
           onSelectGarment={(g) => {
             setModalSelectedItem(g);
             setIsDetailOpen(true);
