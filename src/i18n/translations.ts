@@ -272,7 +272,7 @@ export const translations = {
     navDiscover: 'استكشف',
     navCloset: 'دولابي',
     navDeals: 'العروض',
-    navPassport: 'كارنيهي',
+    navPassport: 'الكارنيه',
 
     // Discover Feed
     cardView: 'كارت',
@@ -403,7 +403,7 @@ export const translations = {
     send: 'إرسال',
 
     // Swapper Passport & Profile
-    swapperPassport: 'كارنيه سواب',
+    swapperPassport: 'الكارنيه',
     level: 'المستوى',
     pts: 'نقطة',
     verified: 'موثق',

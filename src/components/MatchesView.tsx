@@ -544,7 +544,25 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                 </div>
               </div>
 
-              <span className="text-[#caf300] font-mono text-xs font-bold px-1">⇄</span>
+              <div className="flex flex-col items-center gap-1 px-1 shrink-0">
+                <span className="text-[#caf300] font-mono text-xs font-bold leading-none">⇄</span>
+                {activeChatOffer.status !== 'accepted' && activeChatOffer.status !== 'completed' && onEditOffer && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      soundFX.playClick();
+                      triggerHaptic('light');
+                      onEditOffer(activeChatOffer);
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-[#caf300]/15 hover:bg-[#caf300]/25 text-[#caf300] border border-[#caf300]/40 font-mono text-[9px] font-bold uppercase transition-all cursor-pointer flex items-center gap-0.5 active:scale-95 shadow-xs"
+                    title={language === 'ar' ? 'تعديل العرض' : 'Edit Offer'}
+                  >
+                    <span className="material-symbols-outlined text-[12px]">edit_note</span>
+                    <span>{language === 'ar' ? 'تعديل' : language === 'fr' ? 'Modifier' : 'Edit'}</span>
+                  </button>
+                )}
+              </div>
 
               <div
                 onClick={() => {
@@ -789,6 +807,21 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                   {isPinningGps ? 'sync' : 'my_location'}
                 </span>
               </button>
+              {activeChatOffer.status !== 'accepted' && activeChatOffer.status !== 'completed' && onEditOffer && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundFX.playClick();
+                    triggerHaptic('light');
+                    onEditOffer(activeChatOffer);
+                  }}
+                  title={language === 'ar' ? 'تعديل العرض' : language === 'fr' ? 'Modifier l’offre' : 'Edit Offer'}
+                  className="h-10 px-2.5 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-[#caf300] border border-[#caf300]/40 flex items-center justify-center gap-1 cursor-pointer shrink-0 transition-all active:scale-95 font-mono text-[10.5px] font-bold uppercase shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[16px]">tune</span>
+                  <span>{language === 'ar' ? 'تعديل' : language === 'fr' ? 'Modifier' : 'Edit'}</span>
+                </button>
+              )}
               <input
                 type="text"
                 value={messageInput}
