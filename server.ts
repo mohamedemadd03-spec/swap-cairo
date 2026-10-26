@@ -3,6 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -13,13 +14,39 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = path.resolve(__dirname, '.data');
 const DB_FILE = path.resolve(DATA_DIR, 'swap-db.json');
 
+interface ServerUser {
+  uid: string;
+  email: string;
+  displayName: string;
+  handle: string;
+  phoneNumber?: string;
+  passwordHash: string;
+  salt: string;
+  createdAt: string;
+  swapCount: number;
+  trustPoints: number;
+  rating: number;
+  photoURL?: string;
+  preferredHub?: string;
+}
+
 interface ServerDatabaseState {
   garments?: any[];
   wardrobe?: any[];
   offers?: any[];
   userTrustPoints?: number;
   preferredHubId?: string;
+  users?: ServerUser[];
   updatedAt?: string;
+}
+
+function hashPassword(password: string, salt: string): string {
+  return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+}
+
+function generateSafeUser(user: ServerUser) {
+  const { passwordHash, salt, ...safe } = user;
+  return safe;
 }
 
 function readServerDb(): ServerDatabaseState | null {
@@ -844,6 +871,140 @@ app.post('/api/reset-demo', (_req, res) => {
       success: false,
       error: 'Failed to reset server state.',
     });
+  }
+});
+
+/**
+ * =========================================================================
+ * REAL USER AUTHENTICATION API (Persistent, secure & multi-device)
+ * =========================================================================
+ */
+
+// 1. Register with real email & password
+app.post('/api/auth/register', (req, res) => {
+  try {
+    const { email, password, displayName, phoneNumber } = req.body || {};
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ success: false, error: 'بريد إلكتروني غير صالح / Invalid email address' });
+    }
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ success: false, error: 'كلمة المرور يجب أن لا تقل عن 6 أحرف / Password must be at least 6 characters' });
+    }
+    const cleanName = (displayName && typeof displayName === 'string' ? displayName.trim() : '') || email.split('@')[0];
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanPhone = (phoneNumber && typeof phoneNumber === 'string') ? phoneNumber.trim() : '';
+
+    const dbState = readServerDb() || {};
+    const existingUsers = dbState.users || [];
+
+    if (existingUsers.some((u) => u.email === cleanEmail)) {
+      return res.status(409).json({ success: false, error: 'هذا البريد الإلكتروني مسجل بالفعل، يرجى تسجيل الدخول / Email already registered' });
+    }
+
+    const salt = crypto.randomBytes(16).toString('hex');
+    const passwordHash = hashPassword(password, salt);
+    const cleanHandle = '@' + cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 24);
+    const uid = 'usr_' + Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
+
+    const newUser: ServerUser = {
+      uid,
+      email: cleanEmail,
+      displayName: cleanName,
+      handle: cleanHandle,
+      phoneNumber: cleanPhone,
+      passwordHash,
+      salt,
+      createdAt: new Date().toISOString(),
+      swapCount: 0,
+      trustPoints: 450,
+      rating: 5.0,
+      photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanHandle)}`,
+      preferredHub: 'Maadi Hub',
+    };
+
+    writeServerDb({
+      users: [...existingUsers, newUser],
+    });
+
+    const token = 'tok_' + uid + '_' + crypto.randomBytes(16).toString('hex');
+    return res.json({
+      success: true,
+      user: generateSafeUser(newUser),
+      token,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Registration failed' });
+  }
+});
+
+// 2. Login with email/phone & password
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'يرجى كتابة البريد وكلمة المرور / Please provide email and password' });
+    }
+
+    const cleanInput = String(email).toLowerCase().trim();
+    const dbState = readServerDb() || {};
+    const users = dbState.users || [];
+
+    const user = users.find(
+      (u) =>
+        u.email === cleanInput ||
+        u.handle.toLowerCase() === cleanInput ||
+        (u.phoneNumber && u.phoneNumber.replace(/\D/g, '') === cleanInput.replace(/\D/g, ''))
+    );
+
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'الحساب غير موجود، يرجى إنشاء حساب جديد / Account not found, please register' });
+    }
+
+    const checkHash = hashPassword(String(password), user.salt);
+    if (checkHash !== user.passwordHash) {
+      return res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة / Incorrect password' });
+    }
+
+    const token = 'tok_' + user.uid + '_' + crypto.randomBytes(16).toString('hex');
+    return res.json({
+      success: true,
+      user: generateSafeUser(user),
+      token,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Login failed' });
+  }
+});
+
+// 3. Guest trial login
+app.post('/api/auth/guest', (req, res) => {
+  try {
+    const nickname = (req.body?.nickname && typeof req.body.nickname === 'string')
+      ? req.body.nickname.trim()
+      : 'Cairo Guest';
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    const guestUid = 'gst_' + Date.now().toString(36) + '_' + rand;
+    const cleanHandle = `@guest_${rand}`;
+    const guestUser = {
+      uid: guestUid,
+      email: `${guestUid}@swap.vault`,
+      displayName: nickname,
+      handle: cleanHandle,
+      isGuest: true,
+      createdAt: new Date().toISOString(),
+      swapCount: 0,
+      trustPoints: 250,
+      rating: 5.0,
+      photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanHandle)}`,
+      preferredHub: 'Maadi Hub',
+    };
+    return res.json({
+      success: true,
+      user: guestUser,
+      token: 'tok_' + guestUid,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Guest login failed' });
   }
 });
 

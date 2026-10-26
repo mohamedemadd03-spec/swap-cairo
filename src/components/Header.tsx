@@ -89,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="absolute right-0 mt-2 w-48 bg-[#14161d] border border-[#232733] rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in text-xs font-display">
                 <div className="px-3 py-2 border-b border-white/[0.06] text-neutral-300">
                   <div className="font-bold text-white truncate">
-                    {currentUser?.displayName || '@youssef_fits'}
+                    {currentUser?.displayName || '@cairo_swapper'}
                   </div>
                   <div className="text-[10px] text-neutral-400 truncate">
                     {currentUser?.email || 'Verified Swapper'}

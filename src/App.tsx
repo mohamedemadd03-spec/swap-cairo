@@ -32,6 +32,7 @@ import { EditOfferModal } from './components/modals/EditOfferModal';
 import { AuthGateModal } from './components/modals/AuthGateModal';
 import { LanguageSelectModal } from './components/modals/LanguageSelectModal';
 import { InteractiveNotificationBanner } from './components/notifications/InteractiveNotificationBanner';
+import { authService, AuthUser } from './services/authService';
 import { telemetryService } from './services/telemetry';
 import { tagClarityUser } from './services/clarity';
 import { loadTasteProfile, recordSwipeAction, UserTasteProfile } from './services/recommendationEngine';
@@ -77,8 +78,11 @@ export default function App() {
     []
   );
 
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<any | null>(() => {
+    return authService.getStoredUser();
+  });
   const [hasCompletedLaunchAuth, setHasCompletedLaunchAuth] = useState<boolean>(() => {
+    if (authService.getStoredUser()) return true;
     try {
       return localStorage.getItem('swap_launch_auth_done_v1') === 'true';
     } catch {
@@ -357,42 +361,24 @@ export default function App() {
     return garments.filter((g) => g.isStashed);
   }, [garments]);
 
-  // Authentication Handlers
-  const handleGoogleSignIn = async () => {
+  // Real Authentication Handlers
+  const handleAuthSuccess = (user: AuthUser) => {
+    setCurrentUser(user);
+    setHasCompletedLaunchAuth(true);
     try {
-      await signInWithGoogle();
-      setHasCompletedLaunchAuth(true);
       localStorage.setItem('swap_launch_auth_done_v1', 'true');
-    } catch {
-      // Fallback if popup blocked in preview iframe
-      await signInAsGuest('Vault Member').catch(() => {});
-      setHasCompletedLaunchAuth(true);
-      localStorage.setItem('swap_launch_auth_done_v1', 'true');
-    }
-  };
-
-  const handlePhoneSignIn = async (phoneNumber: string, method: 'call' | 'sms' = 'call') => {
-    try {
-      await signInWithPhoneQuick(phoneNumber, method);
-    } catch {
-      // Handled cleanly
-    } finally {
-      setHasCompletedLaunchAuth(true);
-      try {
-        localStorage.setItem('swap_launch_auth_done_v1', 'true');
-      } catch {
-        // Ignore storage error
-      }
-    }
+    } catch {}
   };
 
   const handleSignOut = async () => {
+    authService.logout();
+    setCurrentUser(null);
+    setHasCompletedLaunchAuth(false);
     try {
       localStorage.removeItem('swap_launch_auth_done_v1');
-      setHasCompletedLaunchAuth(false);
       await logOut();
     } catch {
-      setHasCompletedLaunchAuth(false);
+      // Offline clean exit
     }
   };
 
@@ -1357,11 +1343,10 @@ export default function App() {
 
   return (
     <div className="w-full min-h-dvh bg-[#131315] text-[#ededed] font-body selection:bg-[#d4ff00] selection:text-[#0d0e12] flex flex-col justify-between overflow-x-hidden">
-      {/* First-Launch Animated Brutalist Login Gate */}
+      {/* First-Launch Real Brutalist Authentication Gate */}
       <AuthGateModal
         isOpen={!currentUser && !hasCompletedLaunchAuth}
-        onGoogleSignIn={handleGoogleSignIn}
-        onPhoneSignIn={handlePhoneSignIn}
+        onAuthSuccess={handleAuthSuccess}
       />
 
       {/* Post-Login Trilingual Onboarding Modal (AR / EN / FR) */}

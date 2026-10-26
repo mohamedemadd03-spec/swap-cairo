@@ -13,7 +13,7 @@ interface ProfileViewProps {
   stashedGarments: Garment[];
   onSelectGarment: (garment: Garment) => void;
   userTrustPoints?: number;
-  currentUser?: User | null;
+  currentUser?: any | null;
   completedSwapsCount?: number;
   completedOffers?: SwapOffer[];
   onClearDemoCloset?: () => void;
@@ -73,14 +73,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div className="flex flex-col min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="font-display font-bold text-base text-white truncate">
-                  {currentUser?.displayName || '@youssef_fits'}
+                  {currentUser?.displayName || '@cairo_swapper'}
                 </span>
                 <span className="px-1.5 py-0.2 bg-[#caf300] text-[#171e00] font-mono text-[9px] font-bold rounded">
-                  {t('verified')}
+                  {currentUser?.isGuest ? 'GUEST' : t('verified')}
                 </span>
               </div>
-              <span className="font-mono text-xs text-[#c5c9ac]">
-                {t('barterTagline')}
+              <span className="font-mono text-xs text-[#c5c9ac] truncate">
+                {currentUser?.email || t('barterTagline')}
               </span>
               <span className="font-mono text-[11px] text-[#caf300] mt-0.5">
                 {t('defaultSpot')} {currentHub.name}
