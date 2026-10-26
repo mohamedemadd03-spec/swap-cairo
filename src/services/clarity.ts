@@ -11,6 +11,8 @@ declare global {
 
 let isInitialized = false;
 
+const DEFAULT_PROJECT_ID = 'z3uv3vpx1p';
+
 export function initClarity(customProjectId?: string): void {
   if (typeof window === 'undefined' || isInitialized) return;
 
@@ -18,7 +20,8 @@ export function initClarity(customProjectId?: string): void {
     customProjectId ||
     (import.meta as any).env?.VITE_CLARITY_PROJECT_ID ||
     (window as any).CLARITY_PROJECT_ID ||
-    window.localStorage?.getItem('swap_clarity_project_id');
+    window.localStorage?.getItem('swap_clarity_project_id') ||
+    DEFAULT_PROJECT_ID;
 
   if (!projectId || typeof projectId !== 'string' || !projectId.trim()) {
     return;
