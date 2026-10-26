@@ -30,6 +30,19 @@ interface ServerUser {
   preferredHub?: string;
 }
 
+interface ServerReport {
+  id: string;
+  garmentId: string;
+  garmentTitle: string;
+  garmentImageUrl: string;
+  garmentOwnerHandle: string;
+  reason: string;
+  reportedBy: string;
+  reportedAt: string;
+  resolvedAt?: string;
+  status: 'pending' | 'resolved_deleted' | 'resolved_dismissed';
+}
+
 interface ServerDatabaseState {
   garments?: any[];
   wardrobe?: any[];
@@ -37,6 +50,7 @@ interface ServerDatabaseState {
   userTrustPoints?: number;
   preferredHubId?: string;
   users?: ServerUser[];
+  reports?: ServerReport[];
   updatedAt?: string;
 }
 
@@ -1005,6 +1019,154 @@ app.post('/api/auth/guest', (req, res) => {
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Guest login failed' });
+  }
+});
+
+/**
+ * =========================================================================
+ * MODERATION DESK & SAFETY REPORTING API (Admin inspection & Resolution)
+ * =========================================================================
+ */
+
+// 1. Fetch all reports
+app.get('/api/reports', (_req, res) => {
+  try {
+    const dbState = readServerDb() || {};
+    let reports = dbState.reports;
+    if (!reports || !Array.isArray(reports)) {
+      reports = [
+        {
+          id: 'rep_init_01',
+          garmentId: 'garment-1',
+          garmentTitle: 'Vintage Nike Center Swoosh Hoodie',
+          garmentImageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBSV6CFBAaNeOlSRrJtXOhNss58FCAKtIjy3Bve5CHVvkiZL0IISmTkezKXIMlDi9jzlvIzVytK5Ln3vWca6dv0iNA0yfZLIA6yjder4Z9d8HM7gE0hgaS505oI7LXZy3LoNrl2gJvA66aoPSyhJRIzkmsuGoZu_9R18rBJYfqxQDPqQ2ZNG_5CjifBYH0ikEj7m2z-U6uIreKL9UrLPG_OIud5INH-K77SKXjXnqpIGPF8coUcc9MQ',
+          garmentOwnerHandle: '@OmarK',
+          reason: 'اشتباه في تزييف علامة الرقبة الداخلية / Authenticity check',
+          reportedBy: '@cairo_archive',
+          reportedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+          status: 'pending',
+        },
+      ];
+      writeServerDb({ reports });
+    }
+
+    return res.json({
+      success: true,
+      reports,
+      pendingCount: reports.filter((r) => r.status === 'pending').length,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to fetch reports' });
+  }
+});
+
+// 2. Submit a new report against a piece
+app.post('/api/reports', (req, res) => {
+  try {
+    const { garmentId, garmentTitle, garmentImageUrl, garmentOwnerHandle, reason, reportedBy } = req.body || {};
+    if (!garmentId) {
+      return res.status(400).json({ success: false, error: 'garmentId is required' });
+    }
+
+    const dbState = readServerDb() || {};
+    const existingReports = dbState.reports || [];
+
+    const newReport: ServerReport = {
+      id: 'rep_' + Date.now().toString(36) + '_' + crypto.randomBytes(3).toString('hex'),
+      garmentId: String(garmentId),
+      garmentTitle: String(garmentTitle || 'Archival Item').slice(0, 100),
+      garmentImageUrl: String(garmentImageUrl || ''),
+      garmentOwnerHandle: String(garmentOwnerHandle || '@anonymous').slice(0, 40),
+      reason: String(reason || 'مخالفة معايير سواب والمجتمع').slice(0, 200),
+      reportedBy: String(reportedBy || '@user').slice(0, 40),
+      reportedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    // Auto-quarantine garment in server db
+    let garments = dbState.garments || [];
+    garments = garments.map((g) => (g.id === garmentId ? { ...g, isTraded: true, isReported: true } : g));
+
+    // Auto-decline any pending offers on this item
+    let offers = dbState.offers || [];
+    offers = offers.map((o) =>
+      o.theirItem?.id === garmentId && (o.status === 'pending' || o.status === 'maybe')
+        ? { ...o, status: 'declined' }
+        : o
+    );
+
+    writeServerDb({
+      reports: [newReport, ...existingReports].slice(0, 200),
+      garments,
+      offers,
+    });
+
+    return res.json({
+      success: true,
+      report: newReport,
+      message: 'Report logged & garment quarantined for inspection.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to submit report' });
+  }
+});
+
+// 3. Resolve report (delete garment or dismiss/restore)
+app.post('/api/reports/:id/resolve', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body || {}; // 'delete' | 'dismiss'
+    if (!action || (action !== 'delete' && action !== 'dismiss')) {
+      return res.status(400).json({ success: false, error: "Action must be 'delete' or 'dismiss'" });
+    }
+
+    const dbState = readServerDb() || {};
+    const reports = dbState.reports || [];
+    const reportIndex = reports.findIndex((r) => r.id === id);
+
+    if (reportIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Report not found' });
+    }
+
+    const report = reports[reportIndex];
+    let garments = dbState.garments || [];
+    let wardrobe = dbState.wardrobe || [];
+    let offers = dbState.offers || [];
+
+    if (action === 'delete') {
+      report.status = 'resolved_deleted';
+      report.resolvedAt = new Date().toISOString();
+      // Permanently remove garment
+      garments = garments.filter((g) => g.id !== report.garmentId);
+      wardrobe = wardrobe.filter((g) => g.id !== report.garmentId);
+      // Cancel active offers
+      offers = offers.filter((o) => o.theirItem?.id !== report.garmentId && o.yourItem?.id !== report.garmentId);
+    } else {
+      report.status = 'resolved_dismissed';
+      report.resolvedAt = new Date().toISOString();
+      // Restore garment availability
+      garments = garments.map((g) =>
+        g.id === report.garmentId ? { ...g, isTraded: false, isReported: false } : g
+      );
+    }
+
+    reports[reportIndex] = report;
+
+    writeServerDb({
+      reports,
+      garments,
+      wardrobe,
+      offers,
+    });
+
+    return res.json({
+      success: true,
+      report,
+      action,
+      message: action === 'delete' ? 'تم حذف القطعة نهائياً من السيستم' : 'تم تجاهل البلاغ واستعادة القطعة للظهور',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to resolve report' });
   }
 });
 

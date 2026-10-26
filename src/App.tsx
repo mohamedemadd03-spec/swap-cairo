@@ -31,6 +31,7 @@ import { RequestSwapModal } from './components/modals/RequestSwapModal';
 import { EditOfferModal } from './components/modals/EditOfferModal';
 import { AuthGateModal } from './components/modals/AuthGateModal';
 import { LanguageSelectModal } from './components/modals/LanguageSelectModal';
+import { ModerationDeskModal } from './components/modals/ModerationDeskModal';
 import { InteractiveNotificationBanner } from './components/notifications/InteractiveNotificationBanner';
 import { authService, AuthUser } from './services/authService';
 import { telemetryService } from './services/telemetry';
@@ -163,6 +164,7 @@ export default function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isScanOpen, setIsScanOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isModerationDeskOpen, setIsModerationDeskOpen] = useState(false);
 
   // Active Telemetry and Session Observability (MCP / Live Pulse)
   useEffect(() => {
@@ -728,10 +730,12 @@ export default function App() {
     });
   };
 
-  const handleReportGarment = (garment: Garment, _reason: string) => {
+  const handleReportGarment = async (garment: Garment, reason: string) => {
+    // 1. Instantly hide locally from discover feed
     setGarments((prev) =>
       prev.map((g) => (g.id === garment.id ? { ...g, isTraded: true } : g))
     );
+    // 2. Decline any pending offers for this piece
     setOffers((prev) =>
       prev.map((o) =>
         o.theirItem.id === garment.id && (o.status === 'pending' || o.status === 'maybe')
@@ -739,6 +743,24 @@ export default function App() {
           : o
       )
     );
+
+    // 3. Persist to server /api/reports
+    try {
+      await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          garmentId: garment.id,
+          garmentTitle: garment.title,
+          garmentImageUrl: garment.imageUrl,
+          garmentOwnerHandle: garment.owner?.handle || '@anonymous',
+          reason: reason || 'مخالفة معايير سواب',
+          reportedBy: currentUser?.displayName || currentUser?.email || '@anonymous',
+        }),
+      });
+    } catch (err) {
+      console.warn('Failed to log report to server:', err);
+    }
   };
 
   const handleSimulateIncomingOffer = () => {
@@ -1497,6 +1519,7 @@ export default function App() {
             window.localStorage.removeItem('swap_launch_auth_completed');
             setHasCompletedLaunchAuth(false);
           }}
+          onOpenModerationDesk={() => setIsModerationDeskOpen(true)}
         />
       )}
 
@@ -1580,6 +1603,27 @@ export default function App() {
         offer={editingOffer}
         userWardrobe={wardrobe}
         onSaveRevisedOffer={handleSaveRevisedOffer}
+      />
+
+      <ModerationDeskModal
+        isOpen={isModerationDeskOpen}
+        onClose={() => setIsModerationDeskOpen(false)}
+        onGarmentDeleted={(garmentId) => {
+          setGarments((prev) => prev.filter((g) => g.id !== garmentId));
+          setWardrobe((prev) => prev.filter((w) => w.id !== garmentId));
+          setOffers((prev) =>
+            prev.map((o) =>
+              o.theirItem.id === garmentId || o.yourItem.id === garmentId
+                ? { ...o, status: 'declined' }
+                : o
+            )
+          );
+        }}
+        onGarmentRestored={(garmentId) => {
+          setGarments((prev) =>
+            prev.map((g) => (g.id === garmentId ? { ...g, isTraded: false } : g))
+          );
+        }}
       />
     </div>
   );

@@ -19,6 +19,7 @@ interface ProfileViewProps {
   onClearDemoCloset?: () => void;
   onResetDemoData?: () => void;
   onSignOut?: () => void;
+  onOpenModerationDesk?: () => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -34,6 +35,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onClearDemoCloset,
   onResetDemoData,
   onSignOut,
+  onOpenModerationDesk,
 }) => {
   const [hapticsEnabled, setHapticsEnabled] = useState(() => hapticEngine.getEnabled());
   const [activeSection, setActiveSection] = useState<'hubs' | 'receipts' | 'watchlist' | 'charter'>('hubs');
@@ -533,6 +535,45 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
           {/* PWA Mobile Installation Trigger */}
           <PWAInstallButton />
+        </section>
+
+        {/* Moderation Desk (Admin / Owner Safety Controls) */}
+        <section className="p-3.5 rounded-xl bg-[#201f21] border border-[#26262e] flex flex-col gap-2.5 shadow-sm">
+          <div className="flex items-center justify-between font-mono text-xs">
+            <span className="text-white font-bold uppercase flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[15px] text-[#caf300]">shield</span>
+              <span>{language === 'ar' ? 'إدارة البلاغات والأمان' : 'SAFETY & MODERATION'}</span>
+            </span>
+            <span className="px-2 py-0.2 bg-[#caf300]/15 text-[#caf300] font-mono text-[9.5px] font-bold rounded">
+              ADMIN DESK
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[#131315] border border-white/5 font-mono">
+            <div className="flex flex-col pr-2">
+              <span className="text-xs font-bold text-white">
+                {language === 'ar' ? 'سجل بلاغات القطع والمستخدمين' : 'Garment & User Reports Log'}
+              </span>
+              <span className="text-[9.5px] text-[#8f9378]">
+                {language === 'ar'
+                  ? 'مراجعة البلاغات، فحص الأسباب، واتخاذ قرار الحذف أو فك الحجب'
+                  : 'Review complaints, verify authenticity, and approve/delete listings'}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('medium');
+                soundFX.playClick();
+                onOpenModerationDesk?.();
+              }}
+              className="py-2 px-3 rounded-xl bg-[#caf300] hover:bg-[#b5d800] text-[#171e00] font-bold text-xs uppercase cursor-pointer transition-transform active:scale-95 shrink-0 flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-[14px]">policy</span>
+              <span>{language === 'ar' ? 'فتح اللوحة' : 'Open Desk'}</span>
+            </button>
+          </div>
         </section>
 
         {/* Closet & Account Session Controls */}

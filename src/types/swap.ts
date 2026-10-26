@@ -306,3 +306,16 @@ export interface LiveRadarPulse {
   };
 }
 
+export interface ModerationReport {
+  id: string;
+  garmentId: string;
+  garmentTitle: string;
+  garmentImageUrl: string;
+  garmentOwnerHandle: string;
+  reason: string;
+  reportedBy: string;
+  reportedAt: string;
+  resolvedAt?: string;
+  status: 'pending' | 'resolved_deleted' | 'resolved_dismissed';
+}
+
