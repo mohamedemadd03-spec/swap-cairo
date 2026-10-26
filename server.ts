@@ -439,15 +439,15 @@ Format in clean, bulleted zine style.`;
 });
 
 /**
- * 3. AI GARMENT PHOTO AUTO-ANALYSIS, CONTENT MODERATION & QUALITY GATEKEEPER ENDPOINT
+ * 3. AI GARMENT PHOTO AUTO-ANALYSIS, CONTENT MODERATION & ARCHIVAL MUSEUM CURATOR
  * Uses gemini-3.8-flash Vision to:
  * 1) Block inappropriate / NSFW imagery (isSafeContent)
  * 2) Block non-clothing items (isClothing)
- * 3) Reject old, stained, torn, or worn-out clothes below 7.5/10 condition (conditionScore)
- * 4) Auto-fill titles, brands, sizes, conditions, and EGP valuations for approved garments.
+ * 3) Reject unwearable, trashed clothes below 7.0/10 condition (welcomes vintage patina & fading)
+ * 4) Deep Archival Extraction: Era, Fabric/GSM, Stitching, Origin, Rarity, Curator Editorial, and EGP/USD valuations.
  */
 app.post('/api/analyze-garment-photo', async (req, res) => {
-  const { imageBase64, mimeType = 'image/jpeg', userHint = '' } = req.body;
+  const { imageBase64, tagImageBase64, mimeType = 'image/jpeg', userHint = '' } = req.body || {};
   const normHint = String(userHint || '').toLowerCase();
 
   // Balanced keyword safety & quality pre-check (blocks strictly unsafe, non-clothing, or unwearably trashed items; welcomes authentic vintage fade/patina)
@@ -486,46 +486,90 @@ app.post('/api/analyze-garment-photo', async (req, res) => {
     {
       title: 'Vintage Nike Center Swoosh Hoodie',
       brand: 'Nike Vintage 90s',
+      era: 'Late 1990s Vintage',
+      category: 'hoodie',
       categoryTag: 'OUTERWEAR • HEAVYWEIGHT',
       suggestedSize: 'L',
       estimatedValueEgp: 750,
+      fairValueRangeEgp: '700 – 900 EGP',
+      globalResaleUsd: '$85 – $140 USD',
       conditionScore: 9.2,
-      condition: '9.2 / 10 MINT',
-      tags: ['#VINTAGE', '#SWOOSH', '#90S', '#HEAVYWEIGHT'],
+      condition: '9.2 / 10 MINT ARCHIVE',
+      fabricComposition: '100% 450gsm Heavyweight Loopback Terry Cotton',
+      stitchingDetails: 'Single-stitch cuff finish, dense satin center swoosh embroidery',
+      countryOfOrigin: 'Made in USA',
+      rarityTier: 'Grail Tier 1',
+      aestheticArchetype: '90s Boxy Skate / Sportswear Archive',
+      tags: ['#VINTAGE', '#SWOOSH', '#90S', '#HEAVYWEIGHT', '#ARCHIVE'],
       lightingNote: 'Contrast leveled, fabric weave verified, zero structural flaws.',
+      curatorEditorial: 'Coveted late-90s boxy silhouette featuring dead-center embroidered swoosh. Heavyweight loopback terry with authentic natural wash fade.',
+      lotNumber: 'LOT #CAI-ARC-8809',
     },
     {
       title: 'Carhartt WIP Double Knee Work Pants',
       brand: 'Carhartt WIP',
+      era: 'Early 2000s Workwear',
+      category: 'denim',
       categoryTag: 'BOTTOMS • WORKWEAR',
       suggestedSize: '32',
       estimatedValueEgp: 850,
+      fairValueRangeEgp: '800 – 1,050 EGP',
+      globalResaleUsd: '$120 – $180 USD',
       conditionScore: 9.0,
-      condition: '9.0 / 10 MINT',
-      tags: ['#CARHARTT', '#WORKWEAR', '#DOUBLEKNEE', '#RAW'],
+      condition: '9.0 / 10 MINT ARCHIVE',
+      fabricComposition: '12oz Dearborn Duck Canvas with worker patina',
+      stitchingDetails: 'Triple-stitched main seams with riveted stress points',
+      countryOfOrigin: 'Made in Mexico',
+      rarityTier: 'Archival Core',
+      aestheticArchetype: 'Heritage Workwear / Detroit Archive',
+      tags: ['#CARHARTT', '#WORKWEAR', '#DOUBLEKNEE', '#RAW', '#CANVAS'],
       lightingNote: 'Canvas grain verified, seams intact, passed 7.5+ quality threshold.',
+      curatorEditorial: 'Substantial 12oz duck canvas with clean natural worker wear. Reinforced double-knee paneling and antique brass hardware.',
+      lotNumber: 'LOT #CAI-ARC-4412',
     },
     {
       title: "Arc'teryx Alpha SV GORE-TEX Shell",
       brand: "Arc'teryx",
+      era: '2019 Archival Spec',
+      category: 'jacket',
       categoryTag: 'OUTERWEAR • TECHNICAL',
       suggestedSize: 'M',
       estimatedValueEgp: 3200,
+      fairValueRangeEgp: '3,000 – 3,600 EGP',
+      globalResaleUsd: '$420 – $600 USD',
       conditionScore: 9.5,
-      condition: '9.5 / 10 MINT',
-      tags: ['#GORPCORE', '#GORETEX', '#ARCTERYX', '#ARCHIVE'],
+      condition: '9.5 / 10 MINT ARCHIVE',
+      fabricComposition: 'N100p-X GORE-TEX Pro 3-Layer Shell',
+      stitchingDetails: 'Micro-seam allowance (1.6mm) with 8mm GORE seam tape',
+      countryOfOrigin: 'Made in Canada',
+      rarityTier: 'Grail Tier 1',
+      aestheticArchetype: 'Gorpcore Technical / Mountaineering',
+      tags: ['#GORPCORE', '#GORETEX', '#ARCTERYX', '#ARCHIVE', '#PRO3L'],
       lightingNote: 'Membrane & seam lines verified, archival grade approved.',
+      curatorEditorial: 'Peak technical outerwear benchmark. WaterTight external zips and unblemished laminated seam tapes. Mint condition.',
+      lotNumber: 'LOT #CAI-ARC-7721',
     },
     {
       title: "Stüssy Big Ol' Raw Denim Jeans",
       brand: 'Stüssy Archive',
+      era: '2021 Skate Archive',
+      category: 'denim',
       categoryTag: 'DENIM • SKATE FIT',
       suggestedSize: '34',
       estimatedValueEgp: 950,
+      fairValueRangeEgp: '900 – 1,150 EGP',
+      globalResaleUsd: '$110 – $170 USD',
       conditionScore: 9.1,
-      condition: '9.1 / 10 MINT',
-      tags: ['#STUSSY', '#BAGGY', '#SKATE', '#DENIM'],
+      condition: '9.1 / 10 MINT ARCHIVE',
+      fabricComposition: '14.5oz Ring-spun Raw Rigid Cotton Denim',
+      stitchingDetails: 'Classic copper chainstitching with SS-link debossed rivets',
+      countryOfOrigin: 'Made in Portugal',
+      rarityTier: 'Streetwear Staple',
+      aestheticArchetype: '90s Relaxed Skate Silhouette',
+      tags: ['#STUSSY', '#BAGGY', '#SKATE', '#DENIM', '#ARCHIVE'],
       lightingNote: 'Indigo denim verified, zero rips or stains.',
+      curatorEditorial: 'Deep indigo raw rigid denim featuring relaxed wide-leg skate drape. Waistband jacron patch intact with clean copper rivets.',
+      lotNumber: 'LOT #CAI-ARC-2208',
     },
   ];
 
@@ -536,7 +580,7 @@ app.post('/api/analyze-garment-photo', async (req, res) => {
         (f.title.toLowerCase().includes(normHint) || f.brand.toLowerCase().includes(normHint))
     ) || fallbackAnalyses[Math.floor(Math.random() * fallbackAnalyses.length)];
 
-  if (Date.now() < geminiCooldownUntil || !process.env.GEMINI_API_KEY || !imageBase64) {
+  if (Date.now() < geminiCooldownUntil || !process.env.GEMINI_API_KEY || (!imageBase64 && !tagImageBase64)) {
     return res.json({
       success: true,
       approved: true,
@@ -546,44 +590,90 @@ app.post('/api/analyze-garment-photo', async (req, res) => {
   }
 
   try {
-    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const cleanBase64 = imageBase64 ? imageBase64.replace(/^data:image\/\w+;base64,/, '') : '';
+    const cleanTagBase64 = tagImageBase64 ? tagImageBase64.replace(/^data:image\/\w+;base64,/, '') : '';
 
-    const prompt = `You are the Balanced AI Moderation & Apparel Assistant for the streetwear barter app "SWAP".
-Be measured, fair, and realistic — NEVER reject normal phone-camera lighting, natural wrinkles, or authentic vintage streetwear patina/fade.
-Only block items that are:
-1) Strictly NSFW / unsafe / offensive (isSafeContent = false)
-2) Clearly not clothing/footwear/accessories (isClothing = false)
-3) Unwearably trashed, heavily stained, or torn rags below 7.0/10 (conditionScore < 7.0)
+    const prompt = `You are the Chief Streetwear Archivist & Museum Appraiser for "SWAP Cairo" — the premier digital fashion archive and streetwear barter index.
+Analyze the provided photograph(s) of the garment (Photo 1: Silhouette/Cut/Face, Photo 2 [if provided]: Care Tag/Neck Label/Hardware/Stitching).
+
+Your evaluation MUST balance strict authenticity & quality gatekeeping with genuine appreciation for authentic vintage fade, distressed skate wear, and circular fashion patina:
+1) Gatekeeping:
+- Block strictly NSFW / offensive imagery (isSafeContent = false)
+- Block non-clothing / non-footwear items (isClothing = false)
+- Block unwearably trashed, heavily stained, or torn rags below 7.0/10 (conditionScore < 7.0)
+
+2) Museum Archival Taxonomy & Valuation:
+Extract deep archival streetwear provenance to preserve as high-value data for the living fashion museum:
+- "title": Specific garment model name (e.g. "Vintage Nike 90s Embroidered Center Swoosh Hoodie")
+- "brand": Brand & heritage line (e.g. "Nike Archive", "Carhartt WIP", "Stüssy", "Arc'teryx", "Unty")
+- "era": Era/Decade estimation (e.g. "Late 1990s Vintage", "Y2K Skate Era", "FW21 Archival Drop")
+- "category": One of "hoodie", "jacket", "denim", "shoes", "tees", "flannel", "accessories"
+- "categoryTag": Short uppercase classification (e.g. "OUTERWEAR • HEAVYWEIGHT FLEECE")
+- "suggestedSize": Standard size ("S", "M", "L", "XL", "XXL", "30", "32", "34", "36", "42", "43", "44")
+- "estimatedValueEgp": Fair Cairo secondary market barter trade value in Egyptian Pounds (integer between 300 and 4500 EGP)
+- "fairValueRangeEgp": Value range (e.g. "650 – 850 EGP")
+- "globalResaleUsd": Global resale reference (e.g. "$85 – $140 USD")
+- "conditionScore": Number 1.0 to 10.0 (welcome vintage fade and honest wear at 7.5-9.8; score < 7.0 only if unwearable)
+- "condition": Formatted rating (e.g. "9.2 / 10 MINT ARCHIVE")
+- "fabricComposition": Specific fabric and weight estimation (e.g. "100% 450gsm Heavyweight Loopback Cotton", "14.5oz Raw Ring-Spun Denim", "3L GORE-TEX Pro")
+- "stitchingDetails": Construction technique (e.g. "Single-stitch cuffs and hem", "Double-needle reinforced collar", "Chainstitched waistband")
+- "countryOfOrigin": Manufacturing country (e.g. "Made in USA", "Made in Japan", "Made in Portugal", "Made in Egypt", "Unknown / Tag Faded")
+- "rarityTier": One of "Grail Tier 1", "Archival Core", "Streetwear Staple", "Community Vintage"
+- "aestheticArchetype": Aesthetic movement (e.g. "90s Boxy Skate", "Gorpcore Technical", "Heritage Workwear", "Cairo Streetwear Minimal")
+- "curatorEditorial": 2 sentences of museum curator critique highlighting why this piece is culturally significant, its silhouette, and archival value.
+- "tags": Array of 4-6 uppercase hashtags (e.g. ["#VINTAGE", "#NIKE90S", "#CENTERSWOOSH", "#ARCHIVAL"])
+- "lightingNote": 1 sentence summary note (e.g. "Verified archival streetwear • Tag & weave inspected • Passed 7.5+ condition gate")
 
 Return ONLY a valid JSON object with NO markdown fences:
 {
   "isSafeContent": boolean,
   "isClothing": boolean,
-  "conditionScore": number between 1.0 and 10.0 (welcome vintage fade, distress by design, and normal second-hand wear at 7.5-9.5; only score < 7.0 if unwearably dirty/trashed),
-  "rejectionReason": "If rejected, explain politely in 1 short sentence. Otherwise empty string.",
-  "title": "Precise garment name (e.g. 'Vintage Nike Swoosh Hoodie')",
-  "brand": "Brand name (e.g. 'Nike', 'Stüssy', 'Carhartt WIP', 'Vintage')",
-  "categoryTag": "Short uppercase category (e.g. 'OUTERWEAR • L')",
-  "suggestedSize": "Single size string ('S', 'M', 'L', 'XL', '32')",
-  "estimatedValueEgp": integer between 300 and 4500,
-  "condition": "Rating string like '9.0 / 10 MINT' or '8.5 / 10 VINTAGE'",
-  "lightingNote": "1-line helpful note (e.g. 'Verified wearable streetwear • Balanced AI check passed')"
+  "conditionScore": number,
+  "rejectionReason": string,
+  "title": string,
+  "brand": string,
+  "era": string,
+  "category": string,
+  "categoryTag": string,
+  "suggestedSize": string,
+  "estimatedValueEgp": number,
+  "fairValueRangeEgp": string,
+  "globalResaleUsd": string,
+  "condition": string,
+  "fabricComposition": string,
+  "stitchingDetails": string,
+  "countryOfOrigin": string,
+  "rarityTier": string,
+  "aestheticArchetype": string,
+  "curatorEditorial": string,
+  "tags": string[],
+  "lightingNote": string
 }`;
+
+    const parts: any[] = [{ text: prompt }];
+    if (cleanBase64) {
+      parts.push({
+        inlineData: {
+          data: cleanBase64,
+          mimeType,
+        },
+      });
+    }
+    if (cleanTagBase64) {
+      parts.push({
+        inlineData: {
+          data: cleanTagBase64,
+          mimeType,
+        },
+      });
+    }
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: [
         {
           role: 'user',
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                data: cleanBase64,
-                mimeType,
-              },
-            },
-          ],
+          parts,
         },
       ],
       config: {
@@ -637,21 +727,35 @@ Return ONLY a valid JSON object with NO markdown fences:
         });
       }
 
+      const lotNumber = 'LOT #CAI-ARC-' + Math.floor(1000 + Math.random() * 9000);
+
+      const enrichedAnalysis = {
+        title: parsedData.title || matchedFallback.title,
+        brand: parsedData.brand || matchedFallback.brand,
+        era: parsedData.era || matchedFallback.era,
+        category: parsedData.category || matchedFallback.category,
+        categoryTag: parsedData.categoryTag || matchedFallback.categoryTag,
+        suggestedSize: parsedData.suggestedSize || matchedFallback.suggestedSize,
+        estimatedValueEgp: Number(parsedData.estimatedValueEgp) || matchedFallback.estimatedValueEgp,
+        fairValueRangeEgp: parsedData.fairValueRangeEgp || matchedFallback.fairValueRangeEgp,
+        globalResaleUsd: parsedData.globalResaleUsd || matchedFallback.globalResaleUsd,
+        conditionScore: score,
+        condition: parsedData.condition || `${score.toFixed(1)} / 10 MINT ARCHIVE`,
+        fabricComposition: parsedData.fabricComposition || matchedFallback.fabricComposition,
+        stitchingDetails: parsedData.stitchingDetails || matchedFallback.stitchingDetails,
+        countryOfOrigin: parsedData.countryOfOrigin || matchedFallback.countryOfOrigin,
+        rarityTier: parsedData.rarityTier || matchedFallback.rarityTier,
+        aestheticArchetype: parsedData.aestheticArchetype || matchedFallback.aestheticArchetype,
+        curatorEditorial: parsedData.curatorEditorial || matchedFallback.curatorEditorial,
+        tags: Array.isArray(parsedData.tags) && parsedData.tags.length > 0 ? parsedData.tags : matchedFallback.tags,
+        lightingNote: parsedData.lightingNote || 'Passed AI Safety, Apparel & Archival Museum Verification.',
+        lotNumber,
+      };
+
       return res.json({
         success: true,
         approved: true,
-        analysis: {
-          title: parsedData.title || matchedFallback.title,
-          brand: parsedData.brand || matchedFallback.brand,
-          categoryTag: parsedData.categoryTag || matchedFallback.categoryTag,
-          suggestedSize: parsedData.suggestedSize || matchedFallback.suggestedSize,
-          estimatedValueEgp: Number(parsedData.estimatedValueEgp) || matchedFallback.estimatedValueEgp,
-          conditionScore: score,
-          condition: parsedData.condition || `${score.toFixed(1)} / 10 MINT`,
-          tags: Array.isArray(parsedData.tags) ? parsedData.tags : matchedFallback.tags,
-          lightingNote:
-            parsedData.lightingNote || 'Passed AI Safety, Apparel & 7.5+ Condition Gate.',
-        },
+        analysis: enrichedAnalysis,
         source: 'gemini_vision',
       });
     }
@@ -830,6 +934,42 @@ app.post('/api/lockers/verify-handshake', (req, res) => {
       success: false,
       error: 'Handshake verification failed. Please retry QR scan.',
     });
+  }
+});
+
+/**
+ * Living Streetwear Museum & Archival Provenance Index
+ * Aggregates dataset insights across all registered vintage pieces, fabrics, and valuations.
+ */
+app.get('/api/archive/museum-index', (_req, res) => {
+  try {
+    const dbState = readServerDb() || {};
+    const garments = dbState.garments || [];
+    const wardrobe = dbState.wardrobe || [];
+    const allPieces = [...garments, ...wardrobe];
+
+    const brandsMap: Record<string, number> = {};
+    const eraMap: Record<string, number> = {};
+    let totalEstimatedValue = 0;
+
+    for (const p of allPieces) {
+      const b = p.brand || p.title?.split(' ')[0] || 'Vintage';
+      brandsMap[b] = (brandsMap[b] || 0) + 1;
+      const era = p.museumProvenance?.era || 'Contemporary Vintage';
+      eraMap[era] = (eraMap[era] || 0) + 1;
+      totalEstimatedValue += Number(p.estValue || p.value || 500);
+    }
+
+    return res.json({
+      success: true,
+      totalCatalogedPieces: allPieces.length,
+      totalArchivalValuationEgp: totalEstimatedValue,
+      topBrands: Object.entries(brandsMap).sort((a, b) => b[1] - a[1]).slice(0, 8),
+      erasDistribution: eraMap,
+      recentCatalog: allPieces.slice(0, 25),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message });
   }
 });
 

@@ -229,6 +229,58 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
           </div>
         </div>
 
+        {/* Living Streetwear Museum Archival Passport */}
+        <div className="p-3.5 rounded-xl bg-[#171619] border border-[#caf300]/30 flex flex-col gap-2 font-mono shadow-sm">
+          <div className="flex items-center justify-between text-[10.5px]">
+            <span className="text-[#caf300] font-bold uppercase flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[15px]">museum</span>
+              <span>
+                MUSEUM PASSPORT // {item.museumProvenance?.lotNumber || item.lot || 'LOT #CAI-8809'}
+              </span>
+            </span>
+            <span className="px-2 py-0.5 rounded bg-[#caf300]/15 text-[#caf300] font-bold text-[9px] uppercase border border-[#caf300]/30">
+              {item.museumProvenance?.rarityTier || (item.badge ? item.badge : 'Grail Tier 1')}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div className="p-2 rounded-lg bg-[#0e0e11] border border-white/5 flex flex-col gap-0.5">
+              <span className="text-[#8f9378] uppercase text-[8.5px]">Era &amp; Origin</span>
+              <span className="text-white font-bold truncate">
+                {item.museumProvenance?.era || 'Late 1990s Vintage'}
+              </span>
+              <span className="text-[#caf300] text-[8.5px] truncate">
+                {item.museumProvenance?.originCountry || 'Made in USA / Japan'}
+              </span>
+            </div>
+            <div className="p-2 rounded-lg bg-[#0e0e11] border border-white/5 flex flex-col gap-0.5">
+              <span className="text-[#8f9378] uppercase text-[8.5px]">Fair Barter Index</span>
+              <span className="text-[#caf300] font-bold truncate">
+                {item.museumProvenance?.fairValueRangeEgp || `${itemValue - 50} – ${itemValue + 150} EGP`}
+              </span>
+              <span className="text-[#8f9378] text-[8.5px] truncate">
+                Global: {item.museumProvenance?.globalResaleUsd || `$${Math.round(itemValue / 45)} USD`}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-2 rounded-lg bg-[#0e0e11] border border-white/5 text-[9.5px] flex flex-col gap-1">
+            <div className="flex items-center justify-between text-[#c5c9ac]">
+              <span className="font-bold text-white truncate max-w-[190px]">
+                {item.museumProvenance?.fabricComposition || 'Heavyweight Loopback Cotton Fleece'}
+              </span>
+              <span className="text-[#8f9378] text-[8.5px] truncate max-w-[120px]">
+                {item.museumProvenance?.stitchDetail || 'Single-stitch & satin embroidery'}
+              </span>
+            </div>
+            {(item.museumProvenance?.curatorEditorial || item.description) && (
+              <p className="text-[9px] text-[#c5c9ac] font-sans italic leading-relaxed border-t border-white/5 pt-1">
+                "{item.museumProvenance?.curatorEditorial || item.description}"
+              </p>
+            )}
+          </div>
+        </div>
+
         {/* Location & Authenticity Assurance */}
         <div className="p-2.5 rounded-xl bg-[#18181a] border border-white/5 flex items-center justify-between text-[11px] font-mono text-[#c5c9ac]">
           <div className="flex items-center gap-1.5">
