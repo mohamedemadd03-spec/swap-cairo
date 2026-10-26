@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { soundFX } from '../../hooks/useSoundFX';
+import { BrutalistQRCode } from '../common/BrutalistQRCode';
 
 interface ScanModalProps {
   isOpen: boolean;
@@ -166,50 +167,13 @@ export const ScanModal: React.FC<ScanModalProps> = ({
             </div>
 
             {mode === 'my_qr' ? (
-              <div className="flex flex-col items-center gap-3 py-2">
-                <span className="text-[10px] font-bold uppercase text-[#D4FF00] tracking-wider">
-                  ROLE: THE ONE WHO GIVES (SHOW QR ON HANDOVER)
-                </span>
-                <div className="p-3 bg-white rounded-2xl border-4 border-[#D4FF00]">
-                  <svg viewBox="0 0 21 21" className="w-44 h-44">
-                    <rect width="21" height="21" fill="#ffffff" />
-                    <path
-                      d="M1,1 h7 v7 h-7 z M2,2 v5 h5 v-5 z M3,3 h3 v3 h-3 z
-                         M13,1 h7 v7 h-7 z M14,2 v5 h5 v-5 z M15,3 h3 v3 h-3 z
-                         M1,13 h7 v7 h-7 z M2,14 v5 h5 v-5 z M3,15 h3 v3 h-3 z"
-                      fill="#111215"
-                      fillRule="evenodd"
-                    />
-                    {Array.from({ length: 121 }).map((_, idx) => {
-                      const r = 1 + Math.floor(idx / 11) + (idx % 2);
-                      const c = 1 + (idx % 11) + Math.floor(idx / 15);
-                      if (
-                        (r <= 8 && c <= 8) ||
-                        (r <= 8 && c >= 12) ||
-                        (r >= 12 && c <= 8) ||
-                        r >= 20 ||
-                        c >= 20
-                      ) {
-                        return null;
-                      }
-                      const charCode = activePassCode.charCodeAt(idx % activePassCode.length);
-                      const on = (charCode + idx * 7) % 3 !== 0;
-                      return on ? (
-                        <rect key={idx} x={c} y={r} width="1" height="1" fill="#111215" />
-                      ) : null;
-                    })}
-                  </svg>
-                </div>
-                <div className="px-3 py-1 bg-black border border-[#D4FF00] text-[#D4FF00] text-xs font-bold">
-                  GIVER PASS CODE: {activePassCode}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleSimulateScan(activePassCode)}
-                  className="w-full py-2.5 bg-[#D4FF00] text-black font-bold text-xs uppercase cursor-pointer"
-                >
-                  CONFIRM HANDOVER COMPLETE (+50 PTS)
-                </button>
+              <div className="flex flex-col items-center gap-2 py-1 w-full">
+                <BrutalistQRCode
+                  value={activePassCode}
+                  onSimulateScan={() => handleSimulateScan(activePassCode)}
+                  label="ROLE: THE ONE WHO GIVES"
+                  sublabel="وجّه كاميرا المستلم لمسح الكود وتوثيق السواب فوراً"
+                />
               </div>
             ) : (
               <>

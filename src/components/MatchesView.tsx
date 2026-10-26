@@ -3,6 +3,7 @@ import { SwapOffer, WardrobeItem } from '../types/swap';
 import { soundFX, triggerHaptic } from '../hooks/useSoundFX';
 import { BrutalistBurst } from './BrutalistBurst';
 import { ItemDetailModal } from './modals/ItemDetailModal';
+import { BrutalistQRCode } from './common/BrutalistQRCode';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface MatchesViewProps {
@@ -1390,46 +1391,13 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
 
             {/* ROLE 1: THE ONE WHO GIVES (Clean QR + PIN only) */}
             {qrTab === 'my_qr' && (
-              <div className="flex flex-col items-center w-full gap-3 animate-in fade-in">
-                <div
-                  onClick={() => completeQrHandshake(barcodeTargetOffer)}
-                  title="Tap QR to simulate partner scan"
-                  className="p-3.5 rounded-2xl bg-white border-4 border-[#caf300] shadow-[0_0_25px_rgba(202,243,0,0.25)] cursor-pointer transition-transform active:scale-95"
-                >
-                  <svg viewBox="0 0 21 21" className="w-40 h-40">
-                    <rect width="21" height="21" fill="#ffffff" />
-                    <path
-                      d="M1,1 h7 v7 h-7 z M2,2 v5 h5 v-5 z M3,3 h3 v3 h-3 z
-                         M13,1 h7 v7 h-7 z M14,2 v5 h5 v-5 z M15,3 h3 v3 h-3 z
-                         M1,13 h7 v7 h-7 z M2,14 v5 h5 v-5 z M3,15 h3 v3 h-3 z"
-                      fill="#111215"
-                      fillRule="evenodd"
-                    />
-                    {Array.from({ length: 121 }).map((_, idx) => {
-                      const r = 1 + Math.floor(idx / 11) + (idx % 2);
-                      const c = 1 + (idx % 11) + Math.floor(idx / 15);
-                      if (
-                        (r <= 8 && c <= 8) ||
-                        (r <= 8 && c >= 12) ||
-                        (r >= 12 && c <= 8) ||
-                        r >= 20 ||
-                        c >= 20
-                      ) {
-                        return null;
-                      }
-                      const codeStr = barcodeTargetOffer.securityPassCode || 'SWP-7740';
-                      const charCode = codeStr.charCodeAt(idx % codeStr.length);
-                      const on = (charCode + idx * 7) % 3 !== 0;
-                      return on ? (
-                        <rect key={idx} x={c} y={r} width="1" height="1" fill="#111215" />
-                      ) : null;
-                    })}
-                  </svg>
-                </div>
-
-                <div className="px-4 py-1.5 rounded-xl bg-[#131315] border border-[#caf300]/40 font-mono text-xs text-[#caf300] font-bold tracking-wider">
-                  PIN: {barcodeTargetOffer.securityPassCode || 'SWP-7740'}
-                </div>
+              <div className="w-full flex justify-center py-1">
+                <BrutalistQRCode
+                  value={barcodeTargetOffer.securityPassCode || 'SWP-7740'}
+                  onSimulateScan={() => completeQrHandshake(barcodeTargetOffer)}
+                  label={t('giverRole') || 'THE ONE WHO GIVES'}
+                  sublabel={t('giverSub') || 'وجّه كاميرا المستلم لمسح الكود وتوثيق السواب فوراً'}
+                />
               </div>
             )}
 
