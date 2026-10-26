@@ -89,14 +89,11 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
   // Barcode scanner modal
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [barcodeTargetOffer, setBarcodeTargetOffer] = useState<SwapOffer | null>(null);
-  const [qrTab, setQrTab] = useState<'my_qr' | 'scan_camera' | 'verified'>('my_qr');
+  const [qrTab, setQrTab] = useState<'my_qr' | 'scan_camera' | 'verified'>('scan_camera');
   const [manualPinInput, setManualPinInput] = useState('');
   const [lockerUnlockToken, setLockerUnlockToken] = useState<string | null>(null);
   const qrVideoRef = React.useRef<HTMLVideoElement | null>(null);
   const qrStreamRef = React.useRef<MediaStream | null>(null);
-
-  const [fitCheckPhoto, setFitCheckPhoto] = useState<string | null>(null);
-  const fitCheckFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Chat message input
   const [messageInput, setMessageInput] = useState('');
@@ -346,28 +343,10 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
     onScanBarcodeSuccess(offer.id);
   };
 
-  const handleFitCheckFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !barcodeTargetOffer) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      if (dataUrl) {
-        setFitCheckPhoto(dataUrl);
-        triggerHaptic('success');
-        soundFX.playMatch();
-        onScanBarcodeSuccess(barcodeTargetOffer.id, dataUrl);
-        flashToast(language === 'ar' ? '📸 تم توثيق الفيت تشيك في الكارنيه!' : '📸 Fit Check stamped in your Passport!');
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
   const openScanner = (offer: SwapOffer) => {
     soundFX.playClick();
     setBarcodeTargetOffer(offer);
-    setFitCheckPhoto(offer.fitCheckPhoto || null);
-    setQrTab('my_qr');
+    setQrTab('scan_camera');
     setManualPinInput(offer.securityPassCode || 'SWP-7740');
     setLockerUnlockToken(null);
     setIsBarcodeModalOpen(true);
@@ -1609,101 +1588,24 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                   </span>
                 </div>
 
-                {/* FIT CHECK POLAROID CARD */}
-                <div className="mt-2.5 w-full flex flex-col items-center">
-                  <input
-                    type="file"
-                    ref={fitCheckFileInputRef}
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleFitCheckFileSelected}
-                    className="hidden"
-                  />
-
-                  {!fitCheckPhoto ? (
-                    <button
-                      type="button"
-                      onClick={() => fitCheckFileInputRef.current?.click()}
-                      className="w-full py-3 px-3.5 rounded-xl border-2 border-dashed border-[#caf300]/40 hover:border-[#caf300] bg-[#caf300]/5 hover:bg-[#caf300]/10 flex items-center justify-center gap-2.5 cursor-pointer transition-all active:scale-98 group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-[#caf300]/20 flex items-center justify-center text-[#caf300] shrink-0 group-hover:scale-105 transition-transform">
-                        <span className="material-symbols-outlined text-[18px]">photo_camera</span>
-                      </div>
-                      <div className="text-left min-w-0 flex-1">
-                        <span className="font-mono text-[11px] font-bold text-[#caf300] block uppercase tracking-wider">
-                          {t('snapFitCheck')}
-                        </span>
-                        <span className="font-mono text-[9px] text-[#8f9378] block truncate">
-                          {t('fitCheckPrompt')}
-                        </span>
-                      </div>
-                      <span className="material-symbols-outlined text-[#caf300] text-[16px] shrink-0">
-                        arrow_forward
-                      </span>
-                    </button>
-                  ) : (
-                    <div className="w-full max-w-[270px] bg-[#f5f4ef] text-[#131315] p-2.5 pb-4 rounded-sm shadow-[0_12px_35px_rgba(0,0,0,0.6)] border border-white/20 transform rotate-[-1deg] transition-all hover:rotate-0 animate-in zoom-in-95">
-                      {/* Polaroid Image */}
-                      <div className="relative aspect-square w-full bg-[#18181a] overflow-hidden rounded-xs border border-black/10">
-                        <img
-                          src={fitCheckPhoto}
-                          alt="Fit Check Polaroid"
-                          className="w-full h-full object-cover filter contrast-[1.04]"
-                        />
-                        {/* Cairo Stamp Watermark */}
-                        <div className="absolute bottom-2 right-2 border-2 border-red-600/90 text-red-600 font-mono text-[8px] font-black uppercase px-1.5 py-0.5 rounded tracking-tighter rotate-[-6deg] bg-white/80 backdrop-blur-xs shadow-xs">
-                          {t('cairoVerifiedStamp')}
-                        </div>
-                      </div>
-
-                      {/* Polaroid Caption Footer */}
-                      <div className="mt-2.5 px-0.5 flex flex-col gap-0.5 font-mono">
-                        <div className="flex items-center justify-between text-[9px] font-bold text-black/80">
-                          <span>@{barcodeTargetOffer.partner.handle} ⇄ You</span>
-                          <span className="text-black/50 text-[8px]">
-                            {barcodeTargetOffer.hubLocation || 'Cairo Hub'}
-                          </span>
-                        </div>
-                        <p className="text-[10px] font-bold text-black truncate">
-                          {barcodeTargetOffer.theirItem.title}
-                        </p>
-                      </div>
-
-                      {/* Polaroid Quick Action Row */}
-                      <div className="mt-2 pt-2 border-t border-black/10 flex items-center justify-between gap-1 text-[9px] font-mono">
-                        <button
-                          type="button"
-                          onClick={() => fitCheckFileInputRef.current?.click()}
-                          className="text-black/60 hover:text-black font-bold flex items-center gap-0.5 cursor-pointer underline"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">refresh</span>
-                          <span>{t('retakePhoto')}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            triggerHaptic('light');
-                            soundFX.playClick();
-                            const shareText = `Just traded for ${barcodeTargetOffer.theirItem.title} with @${barcodeTargetOffer.partner.handle} on swap.! 📸`;
-                            if (navigator.share) {
-                              await navigator.share({
-                                title: 'swap. Fit Check',
-                                text: shareText,
-                                url: window.location.href,
-                              }).catch(() => {});
-                            } else {
-                              flashToast(t('stampedInPassport'));
-                            }
-                          }}
-                          className="px-2 py-1 rounded bg-[#131315] text-[#caf300] font-bold flex items-center gap-1 cursor-pointer hover:bg-black"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">ios_share</span>
-                          <span>{t('sharePolaroid')}</span>
-                        </button>
-                      </div>
+                {/* Trust Verification Badge & Passport Stamp (كسب الثقة) */}
+                <div className="mt-3 p-3 rounded-2xl bg-[#131315] border border-[#caf300]/40 w-full flex items-center justify-between gap-3 text-left">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#caf300]/10 border border-[#caf300]/40 flex items-center justify-center text-[#caf300] shrink-0">
+                      <span className="material-symbols-outlined text-[20px]">verified</span>
                     </div>
-                  )}
+                    <div className="min-w-0">
+                      <span className="font-mono text-[9px] uppercase text-[#caf300] font-bold block">
+                        {t('cairoVerifiedStamp')}
+                      </span>
+                      <span className="font-mono text-[10px] text-[#c5c9ac] truncate block">
+                        {barcodeTargetOffer.hubLocation || 'Cairo Hub'} • {new Date().toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-[#caf300] text-[#171e00] font-mono text-[9.5px] font-bold uppercase shrink-0 shadow-sm">
+                    +50 PTS
+                  </span>
                 </div>
 
                 {/* 2-Tap Post-Swap Condition & 5★ Partner Rating */}

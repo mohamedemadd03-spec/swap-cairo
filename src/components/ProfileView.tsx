@@ -260,30 +260,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Fit Check Polaroid Display in Passport */}
-                  {offer.fitCheckPhoto && (
-                    <div className="p-2.5 rounded-xl bg-[#131315] border border-[#caf300]/30 flex items-center gap-3">
-                      <div className="w-14 h-14 rounded-xs bg-[#f5f4ef] p-1 shadow-sm shrink-0 border border-black/20 rotate-[-1deg]">
-                        <img
-                          src={offer.fitCheckPhoto}
-                          alt="Fit Check"
-                          className="w-full h-full object-cover rounded-xs filter contrast-[1.04]"
-                        />
+                  {/* Verified Handshake Badge & Trust Stamp */}
+                  <div className="p-2.5 rounded-xl bg-[#131315] border border-[#caf300]/30 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0 font-mono">
+                      <div className="w-8 h-8 rounded-lg bg-[#caf300]/10 border border-[#caf300]/30 flex items-center justify-center text-[#caf300] shrink-0">
+                        <span className="material-symbols-outlined text-[16px]">handshake</span>
                       </div>
-                      <div className="min-w-0 flex-1 font-mono">
+                      <div className="min-w-0">
                         <span className="text-[9px] text-[#caf300] uppercase font-bold flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[13px]">photo_camera</span>
-                          <span>{t('fitCheckTitle')}</span>
+                          <span>✓ {t('cairoVerifiedStamp')}</span>
                         </span>
                         <p className="font-sans text-[11px] font-bold text-white truncate mt-0.5">
                           {offer.theirItem.title} ⇄ {offer.yourItem.title}
                         </p>
-                        <span className="text-[8.5px] text-[#8f9378] block truncate mt-0.5">
-                          ✓ {t('cairoVerifiedStamp')} • {offer.fitCheckTimestamp || 'Verified'}
-                        </span>
                       </div>
                     </div>
-                  )}
+                    <span className="px-2 py-0.5 rounded bg-[#caf300]/20 text-[#caf300] font-mono text-[9px] font-bold uppercase shrink-0">
+                      +50 PTS
+                    </span>
+                  </div>
 
                   <div className="flex items-center justify-between text-[9.5px] text-[#c5c9ac]">
                     <span>Partner: @{offer.partner.handle}</span>
