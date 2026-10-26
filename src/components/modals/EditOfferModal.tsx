@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SwapOffer, WardrobeItem } from '../../types/swap';
 import { soundFX, triggerHaptic } from '../../hooks/useSoundFX';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface EditOfferModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
   onSaveRevisedOffer,
   onNudgeOffer,
 }) => {
+  const { language, t } = useLanguage();
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [cashTopUp, setCashTopUp] = useState<number>(0);
 
@@ -86,10 +88,10 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
             </span>
             <div>
               <h3 className="font-display text-base font-bold text-white uppercase tracking-tight">
-                Edit Trade Selection
+                {language === 'ar' ? 'تعديل عرض البدل' : language === 'fr' ? 'Modifier l’offre' : 'Edit Trade Selection'}
               </h3>
               <p className="font-mono text-[10px] text-[#c5c9ac]">
-                Update pieces or nudge without entering chat
+                {language === 'ar' ? 'غيّر التيشيرت أو زوّد فرق فلوس مباشرة في المحادثة' : language === 'fr' ? 'Modifiez les pièces ou ajoutez du cash' : 'Update pieces or cash without leaving chat'}
               </p>
             </div>
           </div>
@@ -109,7 +111,7 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
             <div className="flex flex-col gap-1.5 pr-2 border-r border-white/10">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-white/10 text-white font-bold">
-                  THEIR PIECE
+                  {language === 'ar' ? 'قطعة الشريك' : language === 'fr' ? 'SA PIÈCE' : 'THEIR PIECE'}
                 </span>
                 <span className="font-mono text-[9.5px] text-[#c5c9ac]">
                   Size {offer.theirItem.size}
@@ -136,7 +138,7 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
             <div className="flex flex-col gap-1.5 pl-1">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#caf300] text-[#171e00] font-bold">
-                  YOUR OFFER
+                  {language === 'ar' ? 'عرضك المعدل' : language === 'fr' ? 'VOTRE OFFRE' : 'YOUR OFFER'}
                 </span>
                 <span className="font-mono text-[9.5px] text-[#caf300] font-bold">
                   {selectedItems.length > 1
@@ -181,7 +183,11 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[10.5px] uppercase tracking-wider text-white font-bold">
-              Select Piece(s) From Your Closet ({selectedItems.length} Selected)
+              {language === 'ar'
+                ? `اختر القطع من دولابك (${selectedItems.length} محددة)`
+                : language === 'fr'
+                ? `Choisir les pièces (${selectedItems.length} sélectionnée(s))`
+                : `Select Piece(s) From Your Closet (${selectedItems.length} Selected)`}
             </span>
           </div>
 
@@ -235,7 +241,7 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
         {/* 3. COMPACT CASH SWEETENER PILLS */}
         <div className="p-2.5 rounded-xl bg-[#131315] border border-white/5 flex items-center justify-between gap-2">
           <span className="font-mono text-[10px] uppercase text-[#c5c9ac] font-bold shrink-0">
-            + Cash Sweetener:
+            {language === 'ar' ? '+ فرق كاش إضافي:' : language === 'fr' ? '+ Ajout de Cash :' : '+ Cash Sweetener:'}
           </span>
           <div className="flex items-center gap-1 flex-1 justify-end">
             {[0, 50, 100, 150, 200].map((amt) => {
@@ -254,7 +260,7 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
                       : 'bg-[#201f21] text-[#c5c9ac] hover:text-white border border-white/5'
                   }`}
                 >
-                  {amt === 0 ? 'None' : `+${amt}`}
+                  {amt === 0 ? (language === 'ar' ? 'بدون' : language === 'fr' ? 'Aucun' : 'None') : `+${amt}`}
                 </button>
               );
             })}
@@ -268,7 +274,7 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
             onClick={onClose}
             className="py-3 px-3.5 rounded-xl bg-[#131315] text-[#c6c6c7] hover:text-white font-mono text-xs uppercase cursor-pointer transition-colors"
           >
-            Cancel
+            {language === 'ar' ? 'إلغاء' : language === 'fr' ? 'Annuler' : 'Cancel'}
           </button>
           {onNudgeOffer && (
             <button
@@ -277,7 +283,7 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
               className="py-3 px-3.5 rounded-xl bg-[#18181a] hover:bg-[#201f21] text-[#caf300] font-mono font-bold text-xs uppercase flex items-center justify-center gap-1 border border-[#caf300]/40 cursor-pointer transition-colors"
             >
               <span className="material-symbols-outlined text-[15px]">bolt</span>
-              <span>Nudge</span>
+              <span>{language === 'ar' ? 'تنبيه الشريك' : language === 'fr' ? 'Relancer' : 'Nudge'}</span>
             </button>
           )}
           <button
@@ -287,7 +293,7 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
             className="flex-1 py-3 rounded-xl bg-[#caf300] text-[#171e00] font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 hover:brightness-110 active:scale-98 transition-all cursor-pointer shadow-lg shadow-[#caf300]/20 disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-[17px]">check_circle</span>
-            <span>Update Trade</span>
+            <span>{language === 'ar' ? 'حفظ وتحديث العرض' : language === 'fr' ? 'Mettre à jour' : 'Update Trade'}</span>
           </button>
         </div>
       </div>

@@ -588,6 +588,27 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
               </div>
             </div>
 
+            {/* Prominent Offer Modification Strip (Always Visible Above Chat Messages) */}
+            {activeChatOffer.status !== 'accepted' && activeChatOffer.status !== 'completed' && onEditOffer && (
+              <div className="pt-2 px-3 pb-2.5 bg-[#141416] border-t border-white/[0.08] flex items-center justify-between gap-2">
+                <span className="font-mono text-[10px] text-[#c5c9ac] truncate">
+                  {language === 'ar' ? 'عايز تغيّر التيشيرت أو تزوّد كاش؟' : language === 'fr' ? 'Changer la pièce ou le cash ?' : 'Want to adjust pieces or cash?'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundFX.playClick();
+                    triggerHaptic('light');
+                    onEditOffer(activeChatOffer);
+                  }}
+                  className="px-3 py-1 rounded-lg bg-[#caf300] hover:bg-[#d9ff1a] text-[#171e00] font-mono text-[10.5px] font-bold uppercase flex items-center gap-1 cursor-pointer transition-all active:scale-95 shrink-0 shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[14px]">edit_note</span>
+                  <span>{language === 'ar' ? 'تعديل العرض الآن' : language === 'fr' ? 'Modifier l’offre' : 'Edit Offer'}</span>
+                </button>
+              </div>
+            )}
+
             {/* Optional Cancel Reason Strip (Only visible when user taps Cancel) */}
             {isCancelDrawerOpen && (
               <div className="p-2.5 bg-[#18181a] border-t border-red-500/30 flex flex-col gap-1.5 animate-in fade-in">
