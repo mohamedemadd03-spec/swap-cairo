@@ -41,6 +41,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [burstActive, setBurstActive] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'grid'>('card');
   const [reportMenuOpen, setReportMenuOpen] = useState(false);
+  const [selectedGenderFit, setSelectedGenderFit] = useState<'all' | 'womens' | 'mens'>('all');
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const dragStartXRef = useRef<number | null>(null);
   const didDragRef = useRef(false);
@@ -77,9 +78,23 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   const filteredAndSortedGarments = rankedDeck;
 
-  const activeIndex = filteredAndSortedGarments.length > 0 ? currentIndex % filteredAndSortedGarments.length : 0;
-  const activeGarment = filteredAndSortedGarments[activeIndex];
-  const nextGarment = filteredAndSortedGarments.length > 1 ? filteredAndSortedGarments[(activeIndex + 1) % filteredAndSortedGarments.length] : null;
+  const displayedDeck = useMemo(() => {
+    return filteredAndSortedGarments.filter((g) => {
+      if (selectedGenderFit === 'all') return true;
+      const fit = g.genderFit || 'unisex';
+      if (selectedGenderFit === 'womens') {
+        return fit === 'womens' || fit === 'unisex';
+      }
+      if (selectedGenderFit === 'mens') {
+        return fit === 'mens' || fit === 'unisex';
+      }
+      return true;
+    });
+  }, [filteredAndSortedGarments, selectedGenderFit]);
+
+  const activeIndex = displayedDeck.length > 0 ? currentIndex % displayedDeck.length : 0;
+  const activeGarment = displayedDeck[activeIndex];
+  const nextGarment = displayedDeck.length > 1 ? displayedDeck[(activeIndex + 1) % displayedDeck.length] : null;
 
   const flashToast = (msg: string) => {
     setToastMessage(msg);
@@ -209,6 +224,61 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               {hasActiveFilters && (
                 <span className="w-1.5 h-1.5 rounded-full bg-[#caf300] animate-pulse" />
               )}
+            </button>
+          </div>
+        </div>
+
+        {/* Smart Streetwear Gender / Fit Segment Selector */}
+        <div className="px-3 pt-2">
+          <div className="flex items-center gap-1 bg-[#18171b] p-1 rounded-xl border border-white/10 font-mono text-[10px]">
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                soundFX.playClick();
+                setSelectedGenderFit('all');
+              }}
+              className={`flex-1 py-1.5 rounded-lg font-bold uppercase transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                selectedGenderFit === 'all'
+                  ? 'bg-[#caf300] text-[#171e00] font-black shadow-sm'
+                  : 'text-[#c5c9ac] hover:text-white'
+              }`}
+            >
+              <span>{language === 'ar' ? 'الكل / UNISEX' : 'ALL // UNISEX'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                soundFX.playClick();
+                setSelectedGenderFit('womens');
+              }}
+              className={`flex-1 py-1.5 rounded-lg font-bold uppercase transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                selectedGenderFit === 'womens'
+                  ? 'bg-[#ff69b4] text-[#1a0010] font-black shadow-sm'
+                  : 'text-[#c5c9ac] hover:text-[#ff69b4]'
+              }`}
+            >
+              <span>🌸</span>
+              <span>{language === 'ar' ? 'بنات (HER)' : 'FOR HER 🌸'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                soundFX.playClick();
+                setSelectedGenderFit('mens');
+              }}
+              className={`flex-1 py-1.5 rounded-lg font-bold uppercase transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                selectedGenderFit === 'mens'
+                  ? 'bg-[#caf300] text-[#171e00] font-black shadow-sm'
+                  : 'text-[#c5c9ac] hover:text-white'
+              }`}
+            >
+              <span>⚡</span>
+              <span>{language === 'ar' ? 'شباب (HIM)' : 'FOR HIM ⚡'}</span>
             </button>
           </div>
         </div>
@@ -376,6 +446,20 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                       <span className="px-2 py-0.5 rounded bg-[#caf300] text-[#171e00] font-mono text-[10px] font-bold uppercase">
                         {t('size')} {activeGarment.size}
                       </span>
+                      {activeGarment.isGirlsOnlyCircle ? (
+                        <span className="px-2 py-0.5 rounded bg-[#ff69b4]/25 text-[#ff69b4] font-mono text-[9.5px] font-bold uppercase border border-[#ff69b4]/50 flex items-center gap-1">
+                          <span>🌸</span>
+                          <span>GIRLS CIRCLE</span>
+                        </span>
+                      ) : activeGarment.genderFit === 'womens' ? (
+                        <span className="px-2 py-0.5 rounded bg-[#ff69b4]/20 text-[#ff69b4] font-mono text-[9.5px] font-bold uppercase border border-[#ff69b4]/40">
+                          HER FIT 🌸
+                        </span>
+                      ) : activeGarment.genderFit === 'mens' ? (
+                        <span className="px-2 py-0.5 rounded bg-[#38bdf8]/20 text-[#38bdf8] font-mono text-[9.5px] font-bold uppercase border border-[#38bdf8]/40">
+                          HIM FIT ⚡
+                        </span>
+                      ) : null}
                       <span className="px-2 py-0.5 rounded bg-[#201f21]/90 text-[#c5c9ac] font-mono text-[10px] uppercase border border-white/10">
                         {activeGarment.condition || '9.2 / 10 MINT'}
                       </span>
@@ -395,7 +479,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                         </span>
                       )}
                       <span className="ml-auto font-mono text-[10px] text-[#c5c9ac]">
-                        {activeIndex + 1} / {filteredAndSortedGarments.length}
+                        {activeIndex + 1} / {displayedDeck.length}
                       </span>
                     </div>
 

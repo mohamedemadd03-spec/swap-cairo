@@ -113,6 +113,22 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-1.5">
+            {item.isGirlsOnlyCircle ? (
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#ff69b4]/15 border border-[#ff69b4]/40">
+                <span className="text-[11px]">🌸</span>
+                <span className="font-mono text-[9px] text-[#ff69b4] uppercase font-bold">GIRLS CIRCLE</span>
+              </div>
+            ) : item.genderFit === 'womens' ? (
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#ff69b4]/15 border border-[#ff69b4]/40">
+                <span className="text-[11px]">🌸</span>
+                <span className="font-mono text-[9px] text-[#ff69b4] uppercase font-bold">HER FIT</span>
+              </div>
+            ) : item.genderFit === 'mens' ? (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-[#38bdf8]/15 border border-[#38bdf8]/40">
+                <span className="material-symbols-outlined text-[12px] text-[#38bdf8]">bolt</span>
+                <span className="font-mono text-[9px] text-[#38bdf8] uppercase font-bold">HIM FIT</span>
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={async () => {
@@ -213,21 +229,38 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
           </p>
 
           {/* Key Specifications Grid */}
-          <div className="grid grid-cols-3 gap-1.5 pt-1.5 border-t border-white/5 font-mono text-[10px]">
-            <div className="bg-[#1c1b1d] p-2 rounded-lg">
-              <span className="text-[#8f9378] block">{t('navCloset').toUpperCase()}</span>
+          <div className="grid grid-cols-4 gap-1.5 pt-1.5 border-t border-white/5 font-mono text-[9.5px]">
+            <div className="bg-[#1c1b1d] p-1.5 rounded-lg">
+              <span className="text-[#8f9378] block text-[8px]">{t('navCloset').toUpperCase()}</span>
               <span className="text-white font-bold uppercase truncate block">{itemCategory}</span>
             </div>
-            <div className="bg-[#1c1b1d] p-2 rounded-lg">
-              <span className="text-[#8f9378] block">{t('condition').toUpperCase()}</span>
-              <span className="text-[#caf300] font-bold block">{item.condition || '9.8 / 10 MINT'}</span>
+            <div className="bg-[#1c1b1d] p-1.5 rounded-lg">
+              <span className="text-[#8f9378] block text-[8px]">FIT / دائرة</span>
+              <span className={`font-bold uppercase truncate block ${item.isGirlsOnlyCircle ? 'text-[#ff69b4]' : item.genderFit === 'womens' ? 'text-[#ff69b4]' : item.genderFit === 'mens' ? 'text-[#38bdf8]' : 'text-white'}`}>
+                {item.isGirlsOnlyCircle ? '🌸 Girls Circle' : item.genderFit === 'womens' ? '🌸 Her Fit' : item.genderFit === 'mens' ? '⚡ Him Fit' : 'Unisex'}
+              </span>
             </div>
-            <div className="bg-[#1c1b1d] p-2 rounded-lg">
-              <span className="text-[#8f9378] block">{t('totalClosetValue').toUpperCase()}</span>
-              <span className="text-white font-bold block">{itemValue} EGP</span>
+            <div className="bg-[#1c1b1d] p-1.5 rounded-lg">
+              <span className="text-[#8f9378] block text-[8px]">{t('condition').toUpperCase()}</span>
+              <span className="text-[#caf300] font-bold truncate block">{item.condition || '9.8 / 10'}</span>
+            </div>
+            <div className="bg-[#1c1b1d] p-1.5 rounded-lg">
+              <span className="text-[#8f9378] block text-[8px]">{t('totalClosetValue').toUpperCase()}</span>
+              <span className="text-white font-bold truncate block">{itemValue} EGP</span>
             </div>
           </div>
         </div>
+
+        {/* Girls-Only Swap Circle Banner */}
+        {item.isGirlsOnlyCircle && (
+          <div className="p-3 rounded-xl bg-[#ff69b4]/10 border border-[#ff69b4]/40 flex items-center gap-2.5 text-[#ff69b4]">
+            <span className="text-xl shrink-0">🌸</span>
+            <div className="text-[10px] font-mono leading-tight">
+              <p className="font-bold text-[11px] uppercase">GIRLS-ONLY SWAP CIRCLE // دائرة سواب بنات فقط</p>
+              <p className="text-white/80 text-[9.5px] mt-0.5">هذه القطعة حصرية للبنات، التبادل والتفاوض يتم فقط في بيئة آمنة وخاصة 100%.</p>
+            </div>
+          </div>
+        )}
 
         {/* Living Streetwear Museum Archival Passport */}
         <div className="p-3.5 rounded-xl bg-[#171619] border border-[#caf300]/30 flex flex-col gap-2 font-mono shadow-sm">

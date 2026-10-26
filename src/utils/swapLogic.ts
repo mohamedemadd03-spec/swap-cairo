@@ -80,6 +80,21 @@ export function filterGarments(garments: Garment[], filters: Partial<FilterSetti
     if (filters.onlyPro && !item.owner.isPro) {
       return false;
     }
+    if (filters.genderFit && filters.genderFit !== 'all') {
+      const itemFit = item.genderFit || 'unisex';
+      if (filters.genderFit === 'womens' && itemFit !== 'womens' && itemFit !== 'unisex') {
+        return false;
+      }
+      if (filters.genderFit === 'mens' && itemFit !== 'mens' && itemFit !== 'unisex') {
+        return false;
+      }
+      if (filters.genderFit === 'unisex' && itemFit !== 'unisex') {
+        return false;
+      }
+    }
+    if (filters.girlsOnlyCircleOnly && !item.isGirlsOnlyCircle) {
+      return false;
+    }
     return true;
   });
 }

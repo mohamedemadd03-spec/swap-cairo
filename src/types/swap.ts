@@ -46,6 +46,8 @@ export interface Garment {
   boxCondition?: 'mint' | 'damaged' | 'replacement' | 'no_box';
   authenticityChecklist?: AuthenticityChecklist;
   museumProvenance?: MuseumArchiveProvenance;
+  genderFit?: 'unisex' | 'womens' | 'mens';
+  isGirlsOnlyCircle?: boolean;
 }
 
 export interface WardrobeItem {
@@ -76,6 +78,8 @@ export interface WardrobeItem {
   authenticityChecklist?: AuthenticityChecklist;
   category?: 'hoodie' | 'jacket' | 'denim' | 'shoes' | 'tees' | 'flannel' | 'accessories';
   museumProvenance?: MuseumArchiveProvenance;
+  genderFit?: 'unisex' | 'womens' | 'mens';
+  isGirlsOnlyCircle?: boolean;
 }
 
 export interface MuseumArchiveProvenance {
@@ -275,6 +279,8 @@ export interface FilterSettings {
   priceRange: [number, number];
   onlyPro: boolean;
   sizes: string[];
+  genderFit?: 'all' | 'unisex' | 'womens' | 'mens';
+  girlsOnlyCircleOnly?: boolean;
 }
 
 export type TelemetryEventType =

@@ -394,13 +394,13 @@ export function calculateGarmentTasteMatch(garment: Garment, profile: UserTasteP
   const catScore = profile.categoryAffinities[catKey] || 0;
   rawPoints += Math.min(15, catScore * 3.5);
 
-  // 3. Archetype cluster synergy (up to 20 pts)
+  // 3. Archetype cluster synergy (up to 30 pts)
   let archetypePoints = 0;
   archetypes.forEach(({ archetype, weight }) => {
     const aff = profile.archetypeAffinities[archetype] || 0;
-    archetypePoints += aff * weight * 3.0;
+    archetypePoints += aff * weight * 5.5;
   });
-  rawPoints += Math.min(20, archetypePoints);
+  rawPoints += Math.min(30, archetypePoints);
 
   // 4. Size bracket compatibility (up to 8 pts)
   const sizeScore = profile.sizeAffinities[sizeBracket] || 0;
@@ -426,7 +426,7 @@ export function calculateGarmentTasteMatch(garment: Garment, profile: UserTasteP
     rawPoints += 4;
   }
 
-  // 7. Recent Momentum Bonus (up to 5 pts)
+  // 7. Recent Momentum Bonus (up to 10 pts)
   if (profile.recentSwipeActions && profile.recentSwipeActions.length > 0) {
     const recentLikes = profile.recentSwipeActions.slice(0, 5).filter((a) => a.action === 'like');
     const recentMatch = recentLikes.some(
@@ -435,7 +435,7 @@ export function calculateGarmentTasteMatch(garment: Garment, profile: UserTasteP
         a.category === catKey ||
         a.archetypes.some((arch) => archetypes.some((ga) => ga.archetype === arch))
     );
-    if (recentMatch) rawPoints += 5;
+    if (recentMatch) rawPoints += 10;
   }
 
   // Bound between 55% and 99%
