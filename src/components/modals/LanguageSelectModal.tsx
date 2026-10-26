@@ -59,14 +59,6 @@ export const LanguageSelectModal: React.FC<LanguageSelectModalProps> = ({
       badge: 'INTERNATIONAL',
       sampleTerms: 'Chat • Handshake • Hold • Hmmm?',
     },
-    {
-      id: 'fr',
-      flag: '🇫🇷',
-      nativeName: 'Français',
-      sublabel: 'Mode Urbaine & Archive Haute Couture',
-      badge: 'PARIS ARCHIVE',
-      sampleTerms: 'Chat • Handshake • Attendez • Euh?',
-    },
   ];
 
   return (
@@ -105,18 +97,12 @@ export const LanguageSelectModal: React.FC<LanguageSelectModalProps> = ({
           </div>
 
           <h2 className="font-display text-2xl font-black text-white mt-1">
-            {selectedLang === 'ar'
-              ? 'اختر لغة التجربة'
-              : selectedLang === 'fr'
-              ? 'Choisissez Votre Langue'
-              : 'Choose Your Language'}
+            {selectedLang === 'ar' ? 'اختر لغة التجربة' : 'Choose Your Language'}
           </h2>
 
           <p className="font-mono text-[10.5px] text-[#c5c9ac]">
             {selectedLang === 'ar'
               ? 'حدد لغة التطبيق المفضلة للتنقل والتفاوض'
-              : selectedLang === 'fr'
-              ? 'Sélectionnez la langue pour vos négociations'
               : 'Select your preferred language for swaps & deals'}
           </p>
         </div>
@@ -187,11 +173,7 @@ export const LanguageSelectModal: React.FC<LanguageSelectModalProps> = ({
           className="w-full py-4 px-4 rounded-2xl bg-[#caf300] text-[#171e00] font-mono text-xs font-black uppercase tracking-wider hover:brightness-110 active:scale-98 transition-all cursor-pointer shadow-lg shadow-[#caf300]/25 flex items-center justify-center gap-2 mt-1"
         >
           <span>
-            {selectedLang === 'ar'
-              ? 'تأكيد ودخول التطبيق'
-              : selectedLang === 'fr'
-              ? 'Confirmer et Entrer'
-              : 'Confirm & Enter SWAP'}
+            {selectedLang === 'ar' ? 'تأكيد ودخول التطبيق' : 'Confirm & Enter SWAP'}
           </span>
           <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
         </button>

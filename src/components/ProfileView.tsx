@@ -292,34 +292,77 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {activeSection === 'hubs' && (
           <div className="flex flex-col gap-3 animate-in fade-in">
             {/* Haptic Engine Vibrations Control Card */}
-            <section className="p-3 rounded-xl bg-[#201f21] border border-[#caf300]/40 flex items-center justify-between gap-2 shadow-sm">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="material-symbols-outlined text-[#caf300] text-[20px] shrink-0">vibration</span>
-                <div className="min-w-0">
-                  <h2 className="font-mono text-xs font-bold uppercase text-white truncate">
-                    {t('hapticsTitle')}
-                  </h2>
-                  <span className="font-mono text-[9.5px] text-[#c5c9ac] block truncate">
-                    {t('hapticsSub')}
-                  </span>
+            <section className="p-3 rounded-xl bg-[#201f21] border border-[#caf300]/40 flex flex-col gap-2.5 shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="material-symbols-outlined text-[#caf300] text-[20px] shrink-0">vibration</span>
+                  <div className="min-w-0">
+                    <h2 className="font-mono text-xs font-bold uppercase text-white truncate">
+                      {t('hapticsTitle')}
+                    </h2>
+                    <span className="font-mono text-[9.5px] text-[#c5c9ac] block truncate">
+                      {t('hapticsSub')}
+                    </span>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = hapticEngine.toggle();
+                    setHapticsEnabled(next);
+                    triggerHaptic('medium');
+                    soundFX.playClick();
+                  }}
+                  className={`px-3 py-1 rounded-full font-mono text-[10px] font-bold uppercase cursor-pointer transition-colors shrink-0 ${
+                    hapticsEnabled
+                      ? 'bg-[#caf300] text-[#171e00]'
+                      : 'bg-[#131315] text-[#8f9378] border border-white/10'
+                  }`}
+                >
+                  {hapticsEnabled ? t('hapticsActive') : t('hapticsMuted')}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = hapticEngine.toggle();
-                  setHapticsEnabled(next);
-                  triggerHaptic('medium');
-                  soundFX.playClick();
-                }}
-                className={`px-3 py-1 rounded-full font-mono text-[10px] font-bold uppercase cursor-pointer transition-colors shrink-0 ${
-                  hapticsEnabled
-                    ? 'bg-[#caf300] text-[#171e00]'
-                    : 'bg-[#131315] text-[#8f9378] border border-white/10'
-                }`}
-              >
-                {hapticsEnabled ? t('hapticsActive') : t('hapticsMuted')}
-              </button>
+
+              {/* Instant Test Haptic Buzz Controls */}
+              {hapticsEnabled && (
+                <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
+                  <span className="font-mono text-[9px] uppercase text-[#8f9378] shrink-0">
+                    {language === 'ar' ? 'تجربة النبض:' : 'Test Buzz:'}
+                  </span>
+                  <div className="flex items-center gap-1 flex-1 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        soundFX.playClick();
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-[#18181a] hover:bg-[#28272b] text-[#c5c9ac] hover:text-[#caf300] font-mono text-[9.5px] uppercase border border-white/10 cursor-pointer active:scale-95"
+                    >
+                      {language === 'ar' ? 'خفيف' : 'Light'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('trade');
+                        soundFX.playMatch();
+                      }}
+                      className="px-2.5 py-0.5 rounded-lg bg-[#caf300]/20 hover:bg-[#caf300]/30 text-[#caf300] font-mono text-[9.5px] font-bold uppercase border border-[#caf300]/40 cursor-pointer active:scale-95"
+                    >
+                      {language === 'ar' ? 'نبض سواب' : 'Swap Buzz'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('heavy');
+                        soundFX.playCash();
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-[#18181a] hover:bg-[#28272b] text-[#c5c9ac] hover:text-white font-mono text-[9.5px] uppercase border border-white/10 cursor-pointer active:scale-95"
+                    >
+                      {language === 'ar' ? 'قوي' : 'Heavy'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* Partner Cafés, Vintage Stores & Safe Meetup Spots */}
@@ -440,20 +483,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <span className="material-symbols-outlined text-[#caf300] text-[18px]">translate</span>
                 <div>
                   <span className="text-xs font-bold text-white block">
-                    {language === 'ar' ? 'لغة التطبيق' : language === 'fr' ? 'Langue' : 'App Language'}
+                    {language === 'ar' ? 'لغة التطبيق' : 'App Language'}
                   </span>
                   <span className="text-[9.5px] text-[#8f9378] block">
                     {language === 'ar'
                       ? 'العربية (لهجة الشارع والقاهرة)'
-                      : language === 'fr'
-                      ? 'Français (Mode & Archive)'
                       : 'English (International)'}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-1.5 pt-1">
+            <div className="grid grid-cols-2 gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => {
@@ -461,14 +502,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   soundFX.playClick();
                   setLanguage('ar');
                 }}
-                className={`py-1.5 px-2 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
+                className={`py-2 px-3 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
                   language === 'ar'
                     ? 'bg-[#caf300] text-black shadow-sm font-black'
                     : 'bg-[#1c1b1f] hover:bg-[#28272b] text-[#c5c9ac] border border-white/5'
                 }`}
               >
-                <span>🇪🇬</span>
-                <span>عربي</span>
+                <span className="text-sm">🇪🇬</span>
+                <span>العربية (AR)</span>
               </button>
 
               <button
@@ -478,31 +519,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   soundFX.playClick();
                   setLanguage('en');
                 }}
-                className={`py-1.5 px-2 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
+                className={`py-2 px-3 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
                   language === 'en'
                     ? 'bg-[#caf300] text-black shadow-sm font-black'
                     : 'bg-[#1c1b1f] hover:bg-[#28272b] text-[#c5c9ac] border border-white/5'
                 }`}
               >
-                <span>🇬🇧</span>
-                <span>EN</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('light');
-                  soundFX.playClick();
-                  setLanguage('fr');
-                }}
-                className={`py-1.5 px-2 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
-                  language === 'fr'
-                    ? 'bg-[#caf300] text-black shadow-sm font-black'
-                    : 'bg-[#1c1b1f] hover:bg-[#28272b] text-[#c5c9ac] border border-white/5'
-                }`}
-              >
-                <span>🇫🇷</span>
-                <span>FR</span>
+                <span className="text-sm">🇬🇧</span>
+                <span>English (EN)</span>
               </button>
             </div>
           </div>

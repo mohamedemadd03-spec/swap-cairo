@@ -102,7 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className="w-full text-left px-3 py-2 rounded-xl text-neutral-300 hover:bg-[#1e2029] hover:text-white transition-colors cursor-pointer mt-1"
                 >
-                  {language === 'ar' ? 'عرض الكارنيه والبروفايل' : language === 'fr' ? 'Voir le Pass et Profil' : 'View Profile & Vault'}
+                  {language === 'ar' ? 'عرض الكارنيه والبروفايل' : 'View Profile & Vault'}
                 </button>
                 <button
                   onClick={() => {
@@ -111,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className="w-full text-left px-3 py-2 rounded-xl text-rose-400 hover:bg-rose-950/30 transition-colors cursor-pointer"
                 >
-                  {language === 'ar' ? 'تبديل الحساب / خروج' : language === 'fr' ? 'Changer de compte / Déconnexion' : 'Switch Account / Sign Out'}
+                  {language === 'ar' ? 'تبديل الحساب / خروج' : 'Switch Account / Sign Out'}
                 </button>
               </div>
             )}

@@ -555,7 +555,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
             {activeChatOffer.status !== 'accepted' && activeChatOffer.status !== 'completed' && onEditOffer && (
               <div className="pt-2 px-3 pb-2.5 bg-[#141416] border-t border-white/[0.08] flex items-center justify-between gap-2">
                 <span className="font-mono text-[10px] text-[#c5c9ac] truncate">
-                  {language === 'ar' ? 'عايز تغيّر التيشيرت أو تزوّد كاش؟' : language === 'fr' ? 'Changer la pièce ou le cash ?' : 'Want to adjust pieces or cash?'}
+                  {language === 'ar' ? 'عايز تغيّر التيشيرت أو تزوّد كاش؟' : 'Want to adjust pieces or cash?'}
                 </span>
                 <button
                   type="button"
@@ -567,7 +567,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                   className="px-3 py-1 rounded-lg bg-[#caf300] hover:bg-[#d9ff1a] text-[#171e00] font-mono text-[10.5px] font-bold uppercase flex items-center gap-1 cursor-pointer transition-all active:scale-95 shrink-0 shadow-sm"
                 >
                   <span className="material-symbols-outlined text-[14px]">edit_note</span>
-                  <span>{language === 'ar' ? 'تعديل العرض الآن' : language === 'fr' ? 'Modifier l’offre' : 'Edit Offer'}</span>
+                  <span>{language === 'ar' ? 'تعديل العرض الآن' : 'Edit Offer'}</span>
                 </button>
               </div>
             )}

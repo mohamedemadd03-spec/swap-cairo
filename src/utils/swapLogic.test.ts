@@ -151,22 +151,18 @@ test('resolveCompetingOffersCleanup automatically declines competing offers on a
   assert.equal(resolved[2].status, 'pending'); // Unrelated offer untouched
 });
 
-test('translations dictionary maintains 100% key parity between EN, AR and FR', async () => {
+test('translations dictionary maintains 100% key parity between EN and AR', async () => {
   const { translations } = await import('../i18n/translations');
   const enKeys = Object.keys(translations.en).sort();
   const arKeys = Object.keys(translations.ar).sort();
-  const frKeys = Object.keys((translations as any).fr).sort();
 
   assert.deepEqual(enKeys, arKeys, 'EN and AR dictionaries must have identical keys');
-  assert.deepEqual(enKeys, frKeys, 'EN and FR dictionaries must have identical keys');
 
   for (const key of enKeys) {
     const enVal = (translations.en as any)[key];
     const arVal = (translations.ar as any)[key];
-    const frVal = ((translations as any).fr)[key];
     assert.ok(typeof enVal === 'string' && enVal.length > 0, `EN key ${key} must not be empty`);
     assert.ok(typeof arVal === 'string' && arVal.length > 0, `AR key ${key} must not be empty`);
-    assert.ok(typeof frVal === 'string' && frVal.length > 0, `FR key ${key} must not be empty`);
   }
 });
 
