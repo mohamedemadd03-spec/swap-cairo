@@ -17,8 +17,8 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('swap_language');
-      if (saved === 'ar' || saved === 'en') return saved;
+      const saved = localStorage.getItem('swap_language') as Language;
+      if (saved === 'ar' || saved === 'en' || saved === 'fr') return saved;
     }
     return 'ar';
   });
@@ -36,7 +36,9 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'ar' : 'en');
+    if (language === 'ar') setLanguage('en');
+    else if (language === 'en') setLanguage('fr');
+    else setLanguage('ar');
   };
 
   useEffect(() => {

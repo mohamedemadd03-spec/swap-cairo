@@ -61,23 +61,6 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
       />
 
       <div className="relative w-full max-w-sm rounded-3xl bg-[#18181b] border-2 border-[#caf300]/70 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.9)] flex flex-col gap-5 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-        {/* Language Switcher in Login Screen */}
-        <div className="absolute top-4 right-4">
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic('light');
-              soundFX.playClick();
-              toggleLanguage();
-            }}
-            className="px-2.5 py-1 rounded-full bg-[#131315] hover:bg-[#201f21] border border-white/10 font-mono text-[10.5px] font-bold text-[#caf300] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-sm active:scale-95"
-            title={language === 'ar' ? 'Switch to English' : 'التحويل للعربية'}
-          >
-            <span className="material-symbols-outlined text-[13px]">translate</span>
-            <span>{language === 'ar' ? 'English' : 'عربي'}</span>
-          </button>
-        </div>
-
         {/* Top Brand Identity (No icon above swap., clean brutalist typography) */}
         <div className="flex flex-col items-center text-center gap-1.5 pt-1">
           <div className="flex items-baseline justify-center">

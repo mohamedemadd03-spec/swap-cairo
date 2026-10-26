@@ -39,7 +39,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [proximityAudioEnabled, setProximityAudioEnabled] = useState(true);
   const [hapticsEnabled, setHapticsEnabled] = useState(() => hapticEngine.getEnabled());
   const [activeSection, setActiveSection] = useState<'hubs' | 'receipts' | 'watchlist' | 'charter'>('hubs');
-  const { language, toggleLanguage, t } = useLanguage();
+  const { language, setLanguage, toggleLanguage, t } = useLanguage();
 
   const level = Math.floor(userTrustPoints / 100);
   const nextLevelProgress = userTrustPoints % 100;
@@ -471,31 +471,77 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#131315] border border-white/5 font-mono">
-            <div className="flex items-center gap-2.5">
-              <span className="material-symbols-outlined text-[#caf300] text-[18px]">translate</span>
-              <div>
-                <span className="text-xs font-bold text-white block">
-                  {language === 'ar' ? 'لغة التطبيق' : 'App Language'}
-                </span>
-                <span className="text-[9.5px] text-[#8f9378] block">
-                  {language === 'ar' ? 'العربية (اللهجة المصرية)' : 'English (US)'}
-                </span>
+          <div className="flex flex-col gap-2 p-3 rounded-xl bg-[#131315] border border-white/5 font-mono">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-[#caf300] text-[18px]">translate</span>
+                <div>
+                  <span className="text-xs font-bold text-white block">
+                    {language === 'ar' ? 'لغة التطبيق' : language === 'fr' ? 'Langue' : 'App Language'}
+                  </span>
+                  <span className="text-[9.5px] text-[#8f9378] block">
+                    {language === 'ar'
+                      ? 'العربية (لهجة الشارع والقاهرة)'
+                      : language === 'fr'
+                      ? 'Français (Mode & Archive)'
+                      : 'English (International)'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic('light');
-                soundFX.playClick();
-                toggleLanguage();
-              }}
-              className="px-3.5 py-1.5 rounded-xl bg-[#caf300]/15 hover:bg-[#caf300]/25 border border-[#caf300]/40 text-[#caf300] font-mono text-xs font-bold uppercase transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
-            >
-              <span className="material-symbols-outlined text-[13px]">translate</span>
-              <span>{language === 'ar' ? 'English' : 'عربي'}</span>
-            </button>
+            <div className="grid grid-cols-3 gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  soundFX.playClick();
+                  setLanguage('ar');
+                }}
+                className={`py-1.5 px-2 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
+                  language === 'ar'
+                    ? 'bg-[#caf300] text-black shadow-sm font-black'
+                    : 'bg-[#1c1b1f] hover:bg-[#28272b] text-[#c5c9ac] border border-white/5'
+                }`}
+              >
+                <span>🇪🇬</span>
+                <span>عربي</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  soundFX.playClick();
+                  setLanguage('en');
+                }}
+                className={`py-1.5 px-2 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
+                  language === 'en'
+                    ? 'bg-[#caf300] text-black shadow-sm font-black'
+                    : 'bg-[#1c1b1f] hover:bg-[#28272b] text-[#c5c9ac] border border-white/5'
+                }`}
+              >
+                <span>🇬🇧</span>
+                <span>EN</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  soundFX.playClick();
+                  setLanguage('fr');
+                }}
+                className={`py-1.5 px-2 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 ${
+                  language === 'fr'
+                    ? 'bg-[#caf300] text-black shadow-sm font-black'
+                    : 'bg-[#1c1b1f] hover:bg-[#28272b] text-[#c5c9ac] border border-white/5'
+                }`}
+              >
+                <span>🇫🇷</span>
+                <span>FR</span>
+              </button>
+            </div>
           </div>
           {/* Live Telemetry / MCP Observability Radar Button */}
           {onOpenLiveRadar && (

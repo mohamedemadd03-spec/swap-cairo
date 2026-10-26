@@ -30,6 +30,7 @@ import { LeaderboardModal } from './components/modals/LeaderboardModal';
 import { RequestSwapModal } from './components/modals/RequestSwapModal';
 import { EditOfferModal } from './components/modals/EditOfferModal';
 import { AuthGateModal } from './components/modals/AuthGateModal';
+import { LanguageSelectModal } from './components/modals/LanguageSelectModal';
 import { LiveRadarModal } from './components/modals/LiveRadarModal';
 import { InteractiveNotificationBanner } from './components/notifications/InteractiveNotificationBanner';
 import { telemetryService } from './services/telemetry';
@@ -79,6 +80,13 @@ export default function App() {
   const [hasCompletedLaunchAuth, setHasCompletedLaunchAuth] = useState<boolean>(() => {
     try {
       return localStorage.getItem('swap_launch_auth_done_v1') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [hasSelectedLanguage, setHasSelectedLanguage] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('swap_lang_selected_v1') === 'true';
     } catch {
       return false;
     }
@@ -1393,6 +1401,12 @@ export default function App() {
         isOpen={!currentUser && !hasCompletedLaunchAuth}
         onGoogleSignIn={handleGoogleSignIn}
         onPhoneSignIn={handlePhoneSignIn}
+      />
+
+      {/* Post-Login Trilingual Onboarding Modal (AR / EN / FR) */}
+      <LanguageSelectModal
+        isOpen={(Boolean(currentUser) || hasCompletedLaunchAuth) && !hasSelectedLanguage}
+        onConfirm={() => setHasSelectedLanguage(true)}
       />
 
       {/* Sticky Header */}
