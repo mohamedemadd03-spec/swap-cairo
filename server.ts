@@ -28,6 +28,9 @@ interface ServerUser {
   rating: number;
   photoURL?: string;
   preferredHub?: string;
+  isBanned?: boolean;
+  banReason?: string;
+  bannedAt?: string;
 }
 
 interface ServerReport {
@@ -51,6 +54,8 @@ interface ServerDatabaseState {
   preferredHubId?: string;
   users?: ServerUser[];
   reports?: ServerReport[];
+  bannedHandles?: string[];
+  bannedIps?: string[];
   updatedAt?: string;
 }
 
@@ -1050,6 +1055,12 @@ app.post('/api/auth/register', (req, res) => {
 
     const dbState = readServerDb() || {};
     const existingUsers = dbState.users || [];
+    const bannedHandles = dbState.bannedHandles || [];
+
+    const cleanHandle = '@' + cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 24);
+    if (bannedHandles.includes(cleanHandle) || bannedHandles.includes(cleanEmail)) {
+      return res.status(403).json({ success: false, error: 'هذا الحساب محظور نهائياً من سواب لمخالفة معايير الأمان' });
+    }
 
     if (existingUsers.some((u) => u.email === cleanEmail)) {
       return res.status(409).json({ success: false, error: 'هذا البريد الإلكتروني مسجل بالفعل، يرجى تسجيل الدخول / Email already registered' });
@@ -1057,7 +1068,6 @@ app.post('/api/auth/register', (req, res) => {
 
     const salt = crypto.randomBytes(16).toString('hex');
     const passwordHash = hashPassword(password, salt);
-    const cleanHandle = '@' + cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 24);
     const uid = 'usr_' + Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
 
     const newUser: ServerUser = {
@@ -1112,6 +1122,14 @@ app.post('/api/auth/login', (req, res) => {
 
     if (!user) {
       return res.status(401).json({ success: false, error: 'الحساب غير موجود، يرجى إنشاء حساب جديد / Account not found, please register' });
+    }
+
+    const bannedHandles = dbState.bannedHandles || [];
+    if (user.isBanned || bannedHandles.includes(user.handle.toLowerCase()) || bannedHandles.includes(user.email.toLowerCase())) {
+      return res.status(403).json({
+        success: false,
+        error: `تم حظر هذا الحساب نهائياً: ${user.banReason || 'مخالفة معايير الأمان ورفع محتوى غير مطابق'}`
+      });
     }
 
     const checkHash = hashPassword(String(password), user.salt);
@@ -1308,6 +1326,186 @@ app.post('/api/reports/:id/resolve', (req, res) => {
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Failed to resolve report' });
   }
+});
+
+/**
+ * =========================================================================
+ * STANDALONE ADMIN & SECURITY BANNING ENGINE
+ * Dedicated Ops Command Center for the app owner (protected by Master PIN)
+ * =========================================================================
+ */
+const ADMIN_MASTER_PIN = process.env.ADMIN_PIN || '2026';
+
+function verifyAdminAuth(req: express.Request): boolean {
+  const pin = req.headers['x-admin-pin'] || req.query.pin || req.body?.pin;
+  return String(pin) === ADMIN_MASTER_PIN;
+}
+
+// 1. Verify Admin PIN
+app.post('/api/admin/login', (req, res) => {
+  const { pin } = req.body || {};
+  if (String(pin) === ADMIN_MASTER_PIN) {
+    return res.json({ success: true, authorized: true, token: 'adm_session_' + Date.now().toString(36) });
+  }
+  return res.status(401).json({ success: false, error: 'رمز الدخول غير صحيح / Invalid Admin PIN' });
+});
+
+// 2. Full Admin Overview: Reports, Users, Garments, Bans
+app.get('/api/admin/overview', (req, res) => {
+  if (!verifyAdminAuth(req)) {
+    return res.status(403).json({ success: false, error: 'Unauthorized. Admin PIN required.' });
+  }
+
+  const dbState = readServerDb() || {};
+  const users = (dbState.users || []).map((u) => generateSafeUser(u));
+  const reports = dbState.reports || [];
+  const garments = dbState.garments || [];
+  const bannedHandles = dbState.bannedHandles || [];
+
+  return res.json({
+    success: true,
+    stats: {
+      totalUsers: users.length,
+      bannedUsersCount: users.filter((u: any) => u.isBanned).length + bannedHandles.length,
+      totalGarments: garments.length,
+      pendingReportsCount: reports.filter((r) => r.status === 'pending').length,
+    },
+    reports,
+    users,
+    garments: garments.slice(0, 50),
+    bannedHandles,
+  });
+});
+
+// 3. One-click Ban User & Purge Closet
+app.post('/api/admin/ban-user', (req, res) => {
+  if (!verifyAdminAuth(req)) {
+    return res.status(403).json({ success: false, error: 'Unauthorized' });
+  }
+
+  const { handle, reason = 'نشر محتوى مضلل أو خرق شروط السواب' } = req.body || {};
+  if (!handle) {
+    return res.status(400).json({ success: false, error: 'Handle is required' });
+  }
+
+  const normHandle = String(handle).toLowerCase().trim();
+  const dbState = readServerDb() || {};
+  const users = dbState.users || [];
+  const bannedHandles = new Set(dbState.bannedHandles || []);
+
+  bannedHandles.add(normHandle);
+
+  // Update user record if exists
+  const updatedUsers = users.map((u) => {
+    if (u.handle.toLowerCase() === normHandle || u.email.toLowerCase() === normHandle) {
+      return {
+        ...u,
+        isBanned: true,
+        banReason: reason,
+        bannedAt: new Date().toISOString(),
+      };
+    }
+    return u;
+  });
+
+  // Purge all garments uploaded by this user
+  let garments = dbState.garments || [];
+  let wardrobe = dbState.wardrobe || [];
+  garments = garments.filter((g) => g.owner?.handle?.toLowerCase() !== normHandle);
+  wardrobe = wardrobe.filter((w) => (w as any).ownerHandle?.toLowerCase() !== normHandle);
+
+  // Cancel any offers
+  let offers = dbState.offers || [];
+  offers = offers.filter(
+    (o) =>
+      o.partner?.handle?.toLowerCase() !== normHandle &&
+      o.theirItem?.owner?.handle?.toLowerCase() !== normHandle
+  );
+
+  // Mark pending reports on this user as resolved_deleted
+  let reports = dbState.reports || [];
+  reports = reports.map((r) =>
+    r.garmentOwnerHandle.toLowerCase() === normHandle && r.status === 'pending'
+      ? { ...r, status: 'resolved_deleted', resolvedAt: new Date().toISOString() }
+      : r
+  );
+
+  writeServerDb({
+    users: updatedUsers,
+    garments,
+    wardrobe,
+    offers,
+    reports,
+    bannedHandles: Array.from(bannedHandles),
+  });
+
+  return res.json({
+    success: true,
+    message: `تم حظر المستخدم ${normHandle} ومسح جميع معروضاته بنجاح.`,
+    bannedHandle: normHandle,
+  });
+});
+
+// 4. Unban User
+app.post('/api/admin/unban-user', (req, res) => {
+  if (!verifyAdminAuth(req)) {
+    return res.status(403).json({ success: false, error: 'Unauthorized' });
+  }
+
+  const { handle } = req.body || {};
+  if (!handle) {
+    return res.status(400).json({ success: false, error: 'Handle required' });
+  }
+
+  const normHandle = String(handle).toLowerCase().trim();
+  const dbState = readServerDb() || {};
+  const users = dbState.users || [];
+  const bannedHandles = (dbState.bannedHandles || []).filter((h) => h.toLowerCase() !== normHandle);
+
+  const updatedUsers = users.map((u) => {
+    if (u.handle.toLowerCase() === normHandle) {
+      return { ...u, isBanned: false, banReason: undefined, bannedAt: undefined };
+    }
+    return u;
+  });
+
+  writeServerDb({
+    users: updatedUsers,
+    bannedHandles,
+  });
+
+  return res.json({
+    success: true,
+    message: `تم إلغاء الحظر عن ${normHandle} بنجاح.`,
+  });
+});
+
+// 5. Delete specific garment directly by Admin
+app.post('/api/admin/delete-garment', (req, res) => {
+  if (!verifyAdminAuth(req)) {
+    return res.status(403).json({ success: false, error: 'Unauthorized' });
+  }
+
+  const { garmentId } = req.body || {};
+  if (!garmentId) {
+    return res.status(400).json({ success: false, error: 'garmentId required' });
+  }
+
+  const dbState = readServerDb() || {};
+  let garments = (dbState.garments || []).filter((g) => g.id !== garmentId);
+  let wardrobe = (dbState.wardrobe || []).filter((w) => w.id !== garmentId);
+  let offers = (dbState.offers || []).filter((o) => o.theirItem?.id !== garmentId && o.yourItem?.id !== garmentId);
+
+  writeServerDb({
+    garments,
+    wardrobe,
+    offers,
+  });
+
+  return res.json({
+    success: true,
+    message: 'تم حذف القطعة نهائياً من السيستم.',
+  });
 });
 
 /**
@@ -1522,6 +1720,15 @@ app.post('/api/telemetry/clear', (_req, res) => {
   } catch {
     return res.status(500).json({ success: false, error: 'Could not clear telemetry' });
   }
+});
+
+// Dedicated Standalone Admin Command Center route
+app.get('/admin', (_req, res) => {
+  const adminHtml = path.resolve(__dirname, 'public', 'admin.html');
+  if (fs.existsSync(adminHtml)) {
+    return res.sendFile(adminHtml);
+  }
+  return res.redirect('/');
 });
 
 // Mount Vite middleware in development
