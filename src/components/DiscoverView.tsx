@@ -3,6 +3,7 @@ import { Garment, WardrobeItem, FilterSettings } from '../types/swap';
 import { soundFX, triggerHaptic } from '../hooks/useSoundFX';
 import { BrutalistBurst } from './BrutalistBurst';
 import { useLanguage } from '../i18n/LanguageContext';
+import { UserTasteProfile, calculateGarmentTasteMatch } from '../services/recommendationEngine';
 
 interface DiscoverViewProps {
   garments: Garment[];
@@ -17,6 +18,7 @@ interface DiscoverViewProps {
   activeFilters?: FilterSettings;
   onResetFilters?: () => void;
   onReportGarment?: (garment: Garment, reason: string) => void;
+  tasteProfile?: UserTasteProfile;
 }
 
 export const DiscoverView: React.FC<DiscoverViewProps> = ({
@@ -32,6 +34,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   activeFilters,
   onResetFilters,
   onReportGarment,
+  tasteProfile,
 }) => {
   const { language, t } = useLanguage();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -88,8 +91,20 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
         return true;
       })
-      .sort((a, b) => parseDistance(a.distance) - parseDistance(b.distance));
-  }, [garments, selectedCategory, searchQuery, maxRadiusKm]);
+      .sort((a, b) => {
+        if (!tasteProfile || tasteProfile.totalSwipes === 0) {
+          return parseDistance(a.distance) - parseDistance(b.distance);
+        }
+        const tasteA = calculateGarmentTasteMatch(a, tasteProfile);
+        const tasteB = calculateGarmentTasteMatch(b, tasteProfile);
+        const distA = parseDistance(a.distance);
+        const distB = parseDistance(b.distance);
+
+        const scoreA = tasteA - distA * 1.5;
+        const scoreB = tasteB - distB * 1.5;
+        return scoreB - scoreA;
+      });
+  }, [garments, selectedCategory, searchQuery, maxRadiusKm, tasteProfile]);
 
   const activeIndex = filteredAndSortedGarments.length > 0 ? currentIndex % filteredAndSortedGarments.length : 0;
   const activeGarment = filteredAndSortedGarments[activeIndex];
@@ -100,17 +115,18 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     setTimeout(() => setToastMessage(null), 2400);
   };
 
-  const handleOpenTradeRequest = (_garment: Garment) => {
-    triggerHaptic('light');
+  const handleOpenTradeRequest = (garment: Garment) => {
+    triggerHaptic('trade');
     soundFX.playClick();
-    flashToast(language === 'ar' ? '🔒 ميزة السواب قادمة في التحديث القادم! خليك متابع' : '🔒 Swap feature coming in the next update!');
+    if (onRequestSwap) {
+      onRequestSwap(garment);
+    }
   };
 
   const handlePass = () => {
     if (!activeGarment) return;
     triggerHaptic('pass');
     soundFX.playClick();
-    flashToast(`Showing next closest piece in your radius...`);
     onSwipeLeft(activeGarment);
   };
 
@@ -144,7 +160,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
     if (!activeGarment) return;
     if (finalDelta > 80) {
-      handleOpenTradeRequest(activeGarment);
+      triggerHaptic('light');
+      soundFX.playClick();
+      onSwipeRight(activeGarment);
     } else if (finalDelta < -80) {
       handlePass();
     }

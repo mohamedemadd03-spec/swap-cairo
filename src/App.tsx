@@ -35,6 +35,7 @@ import { LiveRadarModal } from './components/modals/LiveRadarModal';
 import { InteractiveNotificationBanner } from './components/notifications/InteractiveNotificationBanner';
 import { telemetryService } from './services/telemetry';
 import { tagClarityUser } from './services/clarity';
+import { loadTasteProfile, recordSwipeAction, UserTasteProfile } from './services/recommendationEngine';
 
 import {
   INITIAL_GARMENTS,
@@ -140,6 +141,7 @@ export default function App() {
   const [wishlist, setWishlist] = useState<WishlistItem[]>(INITIAL_WISHLIST);
   const [offers, setOffers] = useState<SwapOffer[]>(initialHydrated.offers);
   const [leaderboardEntries] = useState<LeaderboardEntry[]>(INITIAL_LEADERBOARD);
+  const [tasteProfile, setTasteProfile] = useState<UserTasteProfile>(() => loadTasteProfile());
 
   // Filter settings
   const [filters, setFilters] = useState<FilterSettings>({
@@ -412,11 +414,17 @@ export default function App() {
     }
   };
 
-  const handleSwipeRight = (_garment: Garment) => {
+  const handleSwipeRight = (garment: Garment) => {
+    // Silent background taste coordination (في الخفاء تماماً من وراء الشاشة)
+    const updated = recordSwipeAction(tasteProfile, garment, 'like');
+    setTasteProfile(updated);
     setCurrentIndex((prev) => prev + 1);
   };
 
-  const handleSwipeLeft = (_garment: Garment) => {
+  const handleSwipeLeft = (garment: Garment) => {
+    // Silent background taste coordination (في الخفاء تماماً من وراء الشاشة)
+    const updated = recordSwipeAction(tasteProfile, garment, 'pass');
+    setTasteProfile(updated);
     setCurrentIndex((prev) => prev + 1);
   };
 
@@ -1430,6 +1438,7 @@ export default function App() {
           onSwipeRight={handleSwipeRight}
           onSwipeLeft={handleSwipeLeft}
           onToggleBookmark={handleToggleBookmark}
+          tasteProfile={tasteProfile}
           onOpenItemDetail={(g) => {
             setModalSelectedItem(g);
             setIsDetailOpen(true);
