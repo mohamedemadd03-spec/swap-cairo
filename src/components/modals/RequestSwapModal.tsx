@@ -30,7 +30,7 @@ export const RequestSwapModal: React.FC<RequestSwapModalProps> = ({
   // Background trade coordination: automatically pre-select the optimal counterpart from closet
   React.useEffect(() => {
     if (!targetGarment || userWardrobe.length === 0) return;
-    const available = userWardrobe.filter((w) => w.status !== 'locked');
+    const available = userWardrobe.filter((w) => w.status !== 'pending' && w.status !== 'sold');
     if (available.length === 0) return;
 
     const closest = [...available].sort(

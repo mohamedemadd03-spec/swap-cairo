@@ -227,7 +227,7 @@ export function calculateClosetSynergyScore(
   let bestDelta = 9999;
 
   for (const item of wardrobe) {
-    if (item.status === 'locked' || item.status === 'pending') continue;
+    if (item.status === 'pending' || item.status === 'sold') continue;
 
     const delta = Math.abs((item.value || 500) - (garment.estValue || 500));
     let score = 0;

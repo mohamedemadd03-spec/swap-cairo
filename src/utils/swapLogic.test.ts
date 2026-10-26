@@ -9,7 +9,7 @@ import {
   validateHandshakePassCode,
   resolveCompetingOffersCleanup,
 } from './swapLogic';
-import { Garment } from '../types/swap';
+import { Garment, WardrobeItem } from '../types/swap';
 
 test('calculateSwipeState correctly identifies swap and pass gestures', () => {
   const neutral = calculateSwipeState(10);
@@ -207,13 +207,16 @@ test('recommendationEngine detects archetypes and computes closet trade synergy 
     estValue: 1400,
     category: 'jacket',
     size: "MEN'S L",
+    badge: 'TECHNICAL GRAIL',
+    archiveTag: '3-LAYER GORE-TEX',
+    imageUrl: 'https://example.com/arcteryx.jpg',
     tags: ['#GORPCORE', '#WATERPROOF'],
     distance: '1.2 KM',
     city: 'Maadi',
     currency: 'EGP',
     condition: '9.5 / 10',
     owner: { name: 'Ali', handle: '@ali', isPro: true, rating: 5, swapCount: 10, avatarUrl: '', location: '' },
-    angles: { front: '' },
+    angles: { front: '', back: '' },
     description: 'Gore-Tex technical shell',
     lot: 'LOT-1',
   };
@@ -222,14 +225,15 @@ test('recommendationEngine detects archetypes and computes closet trade synergy 
   assert.ok(detected.length > 0);
   assert.equal(detected[0].archetype, 'GORPCORE');
 
-  const sampleWardrobe = [
+  const sampleWardrobe: WardrobeItem[] = [
     {
       id: 'w-1',
       title: 'Carhartt Detroit',
+      categoryTag: 'JACKET • CANVAS',
       value: 1350,
       size: "MEN'S L",
       category: 'jacket',
-      status: 'available' as const,
+      status: 'available',
       currency: 'EGP',
       imageUrl: '',
       condition: '9 / 10',
