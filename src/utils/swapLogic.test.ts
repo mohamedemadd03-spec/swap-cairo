@@ -191,5 +191,76 @@ test('hapticEngine handles all haptic pattern types gracefully in node/headless 
   assert.equal(hapticEngine.getEnabled(), initialEnabled);
 });
 
+test('recommendationEngine detects archetypes and computes closet trade synergy accurately', async () => {
+  const {
+    detectGarmentArchetypes,
+    calculateClosetSynergyScore,
+    recordSwipeAction,
+    loadTasteProfile,
+    rankCairoFeedEngine,
+  } = await import('../services/recommendationEngine');
+
+  const arcteryxGarment: Garment = {
+    id: 'test-arc',
+    title: "Arc'teryx Alpha SV Shell",
+    brand: "Arc'teryx",
+    estValue: 1400,
+    category: 'jacket',
+    size: "MEN'S L",
+    tags: ['#GORPCORE', '#WATERPROOF'],
+    distance: '1.2 KM',
+    city: 'Maadi',
+    currency: 'EGP',
+    condition: '9.5 / 10',
+    owner: { name: 'Ali', handle: '@ali', isPro: true, rating: 5, swapCount: 10, avatarUrl: '', location: '' },
+    angles: { front: '' },
+    description: 'Gore-Tex technical shell',
+    lot: 'LOT-1',
+  };
+
+  const detected = detectGarmentArchetypes(arcteryxGarment);
+  assert.ok(detected.length > 0);
+  assert.equal(detected[0].archetype, 'GORPCORE');
+
+  const sampleWardrobe = [
+    {
+      id: 'w-1',
+      title: 'Carhartt Detroit',
+      value: 1350,
+      size: "MEN'S L",
+      category: 'jacket',
+      status: 'available' as const,
+      currency: 'EGP',
+      imageUrl: '',
+      condition: '9 / 10',
+      description: '',
+    },
+  ];
+
+  // Value difference is 50 EGP (1400 vs 1350) -> should have high equity synergy
+  const synergy = calculateClosetSynergyScore(arcteryxGarment, sampleWardrobe);
+  assert.ok(synergy.synergyScore >= 20, 'Should have strong closet synergy score');
+  assert.equal(synergy.bestMatchItem?.id, 'w-1');
+  assert.equal(synergy.deltaAmount, 50);
+
+  // Record a swipe action and verify taste profile adapts
+  let profile = loadTasteProfile();
+  profile = recordSwipeAction(profile, arcteryxGarment, 'like');
+  assert.ok(profile.archetypeAffinities.GORPCORE > 0);
+  assert.ok(profile.brandAffinities.arcteryx > 0);
+  assert.equal(profile.likedGarmentIds.includes('test-arc'), true);
+
+  // Verify rankCairoFeedEngine ranks unswiped first
+  const { rankedDeck, unswipedDeck } = rankCairoFeedEngine(
+    [arcteryxGarment],
+    profile,
+    sampleWardrobe,
+    { sessionSwipedIds: new Set() }
+  );
+  assert.equal(rankedDeck.length, 1);
+  assert.equal(unswipedDeck.length, 1);
+});
+
+
 
 

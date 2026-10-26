@@ -27,6 +27,21 @@ export const RequestSwapModal: React.FC<RequestSwapModalProps> = ({
   const [cashTopUp, setCashTopUp] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Background trade coordination: automatically pre-select the optimal counterpart from closet
+  React.useEffect(() => {
+    if (!targetGarment || userWardrobe.length === 0) return;
+    const available = userWardrobe.filter((w) => w.status !== 'locked');
+    if (available.length === 0) return;
+
+    const closest = [...available].sort(
+      (a, b) => Math.abs(a.value - targetGarment.estValue) - Math.abs(b.value - targetGarment.estValue)
+    )[0];
+
+    if (closest) {
+      setSelectedVaultItemIds([closest.id]);
+    }
+  }, [targetGarment?.id, isOpen]);
+
   if (!isOpen || !targetGarment) return null;
 
   const selectedItems = userWardrobe.filter((item) =>

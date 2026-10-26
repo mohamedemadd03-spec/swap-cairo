@@ -3,7 +3,7 @@ import { Garment, WardrobeItem, FilterSettings } from '../types/swap';
 import { soundFX, triggerHaptic } from '../hooks/useSoundFX';
 import { BrutalistBurst } from './BrutalistBurst';
 import { useLanguage } from '../i18n/LanguageContext';
-import { UserTasteProfile, calculateGarmentTasteMatch } from '../services/recommendationEngine';
+import { UserTasteProfile, rankCairoFeedEngine, loadTasteProfile } from '../services/recommendationEngine';
 
 interface DiscoverViewProps {
   garments: Garment[];
@@ -47,64 +47,35 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Proximity helper: parse numeric distance from string
-  const parseDistance = (d: string) => {
-    const match = d.match(/[\d.]+/);
-    return match ? parseFloat(match[0]) : 999;
-  };
+  // Session Swiped tracking for non-repeating stream behind the scenes
+  const [sessionSwipedIds, setSessionSwipedIds] = useState<Set<string>>(() => new Set());
 
   // Inherit active search query & category from side-panel filters
   const searchQuery = activeFilters?.searchQuery || '';
   const selectedCategory = activeFilters?.category || 'all';
   const maxRadiusKm = activeFilters?.maxDistanceKm || 15;
 
-  // Proximity Priority + Category & Search Filtering
-  const filteredAndSortedGarments = useMemo(() => {
-    return [...garments]
-      .filter((g) => !g.isTraded)
-      .filter((g) => {
-        // Proximity radius filter
-        const km = parseDistance(g.distance);
-        if (km > maxRadiusKm) return false;
+  const handleResetFilters = () => {
+    setSessionSwipedIds(new Set());
+    onResetFilters?.();
+  };
 
-        // Category filter from side-panel
-        if (selectedCategory !== 'all') {
-          const cat = (g.category || '').toLowerCase();
-          const title = (g.title || '').toLowerCase();
-          if (selectedCategory === 'tees' && !cat.includes('tee') && !title.includes('tee') && !title.includes('t-shirt')) return false;
-          if (selectedCategory === 'hoodie' && !cat.includes('hoodie') && !title.includes('hoodie')) return false;
-          if (selectedCategory === 'jacket' && !cat.includes('jacket') && !title.includes('jacket') && !title.includes('shell')) return false;
-          if (selectedCategory === 'denim' && !cat.includes('denim') && !title.includes('jean') && !title.includes('denim') && !title.includes('pant')) return false;
-          if (selectedCategory === 'shoes' && !cat.includes('shoe') && !title.includes('salomon') && !title.includes('sneaker')) return false;
-        }
+  // Master Cairo Multi-Vector Recommendation & Trade Synergy Engine
+  const { rankedDeck } = useMemo(() => {
+    return rankCairoFeedEngine(
+      garments,
+      tasteProfile || loadTasteProfile(),
+      userWardrobe,
+      {
+        filterCategory: selectedCategory,
+        searchQuery,
+        maxDistanceKm: maxRadiusKm,
+        sessionSwipedIds,
+      }
+    );
+  }, [garments, tasteProfile, userWardrobe, selectedCategory, searchQuery, maxRadiusKm, sessionSwipedIds]);
 
-        // Keyword Search filter from side-panel
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase();
-          const matchTitle = g.title.toLowerCase().includes(q);
-          const matchBrand = g.brand.toLowerCase().includes(q);
-          const matchSize = g.size.toLowerCase().includes(q);
-          const matchOwner = g.owner.handle.toLowerCase().includes(q) || g.owner.name.toLowerCase().includes(q);
-          const matchCity = g.city.toLowerCase().includes(q);
-          return matchTitle || matchBrand || matchSize || matchOwner || matchCity;
-        }
-
-        return true;
-      })
-      .sort((a, b) => {
-        if (!tasteProfile || tasteProfile.totalSwipes === 0) {
-          return parseDistance(a.distance) - parseDistance(b.distance);
-        }
-        const tasteA = calculateGarmentTasteMatch(a, tasteProfile);
-        const tasteB = calculateGarmentTasteMatch(b, tasteProfile);
-        const distA = parseDistance(a.distance);
-        const distB = parseDistance(b.distance);
-
-        const scoreA = tasteA - distA * 1.5;
-        const scoreB = tasteB - distB * 1.5;
-        return scoreB - scoreA;
-      });
-  }, [garments, selectedCategory, searchQuery, maxRadiusKm, tasteProfile]);
+  const filteredAndSortedGarments = rankedDeck;
 
   const activeIndex = filteredAndSortedGarments.length > 0 ? currentIndex % filteredAndSortedGarments.length : 0;
   const activeGarment = filteredAndSortedGarments[activeIndex];
@@ -127,6 +98,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     if (!activeGarment) return;
     triggerHaptic('pass');
     soundFX.playClick();
+    setSessionSwipedIds((prev) => new Set(prev).add(activeGarment.id));
     onSwipeLeft(activeGarment);
   };
 
@@ -162,6 +134,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     if (finalDelta > 80) {
       triggerHaptic('light');
       soundFX.playClick();
+      setSessionSwipedIds((prev) => new Set(prev).add(activeGarment.id));
       onSwipeRight(activeGarment);
     } else if (finalDelta < -80) {
       handlePass();
@@ -255,7 +228,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               type="button"
               onClick={() => {
                 soundFX.playClick();
-                onResetFilters?.();
+                handleResetFilters();
               }}
               className="text-[#caf300] hover:underline font-bold uppercase shrink-0 ml-2 cursor-pointer"
             >
@@ -279,7 +252,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             <button
               type="button"
               onClick={() => {
-                onResetFilters?.();
+                handleResetFilters();
               }}
               className="mt-3 px-3.5 py-1.5 rounded-lg bg-[#caf300] text-[#171e00] font-mono text-[11px] font-bold uppercase cursor-pointer"
             >
