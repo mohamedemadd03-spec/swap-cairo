@@ -523,24 +523,8 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex flex-col items-center gap-1 px-1 shrink-0">
-                <span className="text-[#caf300] font-mono text-xs font-bold leading-none">⇄</span>
-                {activeChatOffer.status !== 'accepted' && activeChatOffer.status !== 'completed' && onEditOffer && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      soundFX.playClick();
-                      triggerHaptic('light');
-                      onEditOffer(activeChatOffer);
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-[#caf300]/15 hover:bg-[#caf300]/25 text-[#caf300] border border-[#caf300]/40 font-mono text-[9px] font-bold uppercase transition-all cursor-pointer flex items-center gap-0.5 active:scale-95 shadow-xs"
-                    title={language === 'ar' ? 'تعديل العرض' : 'Edit Offer'}
-                  >
-                    <span className="material-symbols-outlined text-[12px]">edit_note</span>
-                    <span>{language === 'ar' ? 'تعديل' : language === 'fr' ? 'Modifier' : 'Edit'}</span>
-                  </button>
-                )}
+              <div className="flex items-center justify-center px-1.5 shrink-0">
+                <span className="text-[#caf300] font-mono text-base font-black leading-none select-none">⇄</span>
               </div>
 
               <div
@@ -800,28 +784,13 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                 type="button"
                 onClick={handlePinExactGpsLocation}
                 disabled={isPinningGps}
-                title="Share Live SWAP GPS Radar Card in chat"
+                title="Share Meetup GPS Pin"
                 className="w-10 h-10 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-[#caf300] border border-[#caf300]/40 flex items-center justify-center cursor-pointer shrink-0 transition-all active:scale-95"
               >
                 <span className="material-symbols-outlined text-[19px]">
                   {isPinningGps ? 'sync' : 'my_location'}
                 </span>
               </button>
-              {activeChatOffer.status !== 'accepted' && activeChatOffer.status !== 'completed' && onEditOffer && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundFX.playClick();
-                    triggerHaptic('light');
-                    onEditOffer(activeChatOffer);
-                  }}
-                  title={language === 'ar' ? 'تعديل العرض' : language === 'fr' ? 'Modifier l’offre' : 'Edit Offer'}
-                  className="h-10 px-2.5 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-[#caf300] border border-[#caf300]/40 flex items-center justify-center gap-1 cursor-pointer shrink-0 transition-all active:scale-95 font-mono text-[10.5px] font-bold uppercase shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[16px]">tune</span>
-                  <span>{language === 'ar' ? 'تعديل' : language === 'fr' ? 'Modifier' : 'Edit'}</span>
-                </button>
-              )}
               <input
                 type="text"
                 value={messageInput}
@@ -1097,83 +1066,57 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                   {/* Fast Action Suite (Feed Level) */}
                   {!isAccepted && !isDeclined && offer.direction !== 'sent' && (
                     <div className="mt-3 flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5">
+                      <div className="grid grid-cols-2 gap-2">
                         {/* 1. Agree */}
                         <button
                           type="button"
                           onClick={() => {
+                            soundFX.playMatch();
                             triggerHaptic('trade');
                             handleQuickAccept(offer);
                           }}
-                          className="flex-1 py-2.5 rounded-xl bg-[#caf300] text-[#171e00] font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1 hover:brightness-110 active:scale-98 transition-all cursor-pointer shadow-md shadow-[#caf300]/20"
+                          className="py-2.5 px-3 rounded-xl bg-[#caf300] hover:bg-[#d6ff1a] text-[#171e00] font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-[15px]">check_circle</span>
+                          <span className="material-symbols-outlined text-[16px]">check_circle</span>
                           <span>{t('agree')}</span>
                         </button>
 
-                        {/* 2. Nudge (1-tap directly without options) */}
+                        {/* 2. Chat */}
                         <button
                           type="button"
-                          onClick={() => {
-                            triggerHaptic('nudge');
-                            handleQuickMaybe(offer);
-                          }}
-                          className={`px-3.5 py-2.5 rounded-xl font-mono text-xs font-bold uppercase flex items-center justify-center gap-1 border transition-colors cursor-pointer ${
-                            isMaybe
-                              ? 'bg-[#caf300]/20 text-[#caf300] border-[#caf300]/40'
-                              : 'bg-[#201f21] hover:bg-[#2a2a2c] text-[#c5c9ac] hover:text-[#caf300] border-white/10'
-                          }`}
-                          title="1-tap: Signal partner that you're hesitating/waiting"
+                          onClick={() => handleOpenChat(offer)}
+                          className="py-2.5 px-3 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-white flex items-center justify-center gap-1.5 border border-white/10 transition-colors cursor-pointer font-mono text-xs font-bold uppercase"
                         >
-                          <span className="material-symbols-outlined text-[15px] text-[#caf300]">
-                            front_hand
-                          </span>
-                          <span>{isMaybe ? t('nudged') : t('nudge')}</span>
+                          <span className="material-symbols-outlined text-[16px] text-[#caf300]">chat</span>
+                          <span>{t('chat')}</span>
                         </button>
+                      </div>
 
-                        {/* 3. Edit Counter-Offer */}
+                      {/* Secondary Action Row: Edit & Refuse */}
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
                           onClick={() => {
                             triggerHaptic('light');
                             onEditOffer?.(offer);
                           }}
-                          className="px-3 py-2.5 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-white hover:text-[#caf300] font-mono text-xs font-bold uppercase flex items-center justify-center gap-1 border border-white/10 transition-colors cursor-pointer"
-                          title="Counter-select which closet piece to give"
+                          className="py-2 px-3 rounded-xl bg-[#18181a] hover:bg-[#201f21] text-[#c5c9ac] hover:text-[#caf300] font-mono text-[11px] font-bold uppercase flex items-center justify-center gap-1 border border-white/5 transition-colors cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-[15px] text-[#caf300]">
-                            edit_note
-                          </span>
+                          <span className="material-symbols-outlined text-[14px]">edit_note</span>
                           <span>{t('edit')}</span>
                         </button>
 
-                        {/* 4. Refuse (X icon only) */}
                         <button
                           type="button"
                           onClick={() => {
                             triggerHaptic('warning');
                             handleQuickDecline(offer);
                           }}
-                          className="w-10 h-10 rounded-xl bg-[#201f21] hover:bg-red-500/20 text-[#c5c9ac] hover:text-red-400 flex items-center justify-center border border-white/5 transition-colors cursor-pointer shrink-0"
-                          title={t('refuse')}
+                          className="py-2 px-3 rounded-xl bg-[#18181a] hover:bg-red-500/20 text-[#8f9378] hover:text-red-400 font-mono text-[11px] uppercase flex items-center justify-center gap-1 border border-white/5 transition-colors cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-[16px]">close</span>
+                          <span className="material-symbols-outlined text-[14px]">close</span>
+                          <span>{t('refuse')}</span>
                         </button>
-
-                        {/* 5. Chat */}
-                        <button
-                          type="button"
-                          onClick={() => handleOpenChat(offer)}
-                          className="w-10 h-10 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-white flex items-center justify-center border border-white/10 transition-colors cursor-pointer shrink-0"
-                          title="Ask questions or coordinate location in chat"
-                        >
-                          <span className="material-symbols-outlined text-[16px] text-[#caf300]">chat</span>
-                        </button>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[9.5px] font-mono text-[#8f9378] px-1">
-                        <span>{t('tapNudgeHint')}</span>
-                        <span>{t('instantOneTap')}</span>
                       </div>
                     </div>
                   )}
@@ -1195,72 +1138,65 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                           <p className="font-sans text-[11px] text-[#e5e1e4] leading-relaxed">
                             {t('sweetenOfferHint', { handle: offer.partner.handle })}
                           </p>
-                          <div className="flex items-center gap-1.5 pt-1">
-                            {/* Main Reply Button: هاا */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                soundFX.playClick();
-                                triggerHaptic('light');
-                                onSendMessage?.(offer.id, language === 'ar' ? 'هاا؟' : 'Hmmm?');
-                                flashToast(t('haaToast'));
-                              }}
-                              className="flex-1 py-2.5 rounded-xl bg-[#caf300] text-[#171e00] font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer shadow-md shadow-[#caf300]/20 transition-all active:scale-98"
-                              title={t('haaBtn')}
-                            >
-                              <span>{t('haaBtn')}</span>
-                            </button>
+                          <div className="flex flex-col gap-2 pt-1">
+                            <div className="grid grid-cols-2 gap-2">
+                              {/* Main Reply Button: هاا */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  soundFX.playClick();
+                                  triggerHaptic('light');
+                                  onSendMessage?.(offer.id, language === 'ar' ? 'هاا؟' : 'Hmmm?');
+                                  flashToast(t('haaToast'));
+                                }}
+                                className="py-2.5 px-3 rounded-xl bg-[#caf300] hover:bg-[#d6ff1a] text-[#171e00] font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer shadow-sm transition-all active:scale-98"
+                                title={t('haaBtn')}
+                              >
+                                <span>{t('haaBtn')}</span>
+                              </button>
 
-                            {/* Stand Firm */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                soundFX.playClick();
-                                onStandFirm?.(offer.id);
-                                flashToast(t('stoodFirmToast'));
-                              }}
-                              className="px-2.5 py-2.5 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-[#caf300] font-mono text-xs font-bold uppercase border border-[#caf300]/30 flex items-center gap-1 cursor-pointer"
-                              title="Stand firm: Original proposal stands"
-                            >
-                              <span className="material-symbols-outlined text-[14px]">shield</span>
-                              <span>{t('standFirmBtn')}</span>
-                            </button>
+                              {/* Chat */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenChat(offer)}
+                                className="py-2.5 px-3 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-white flex items-center justify-center gap-1 border border-white/10 transition-colors cursor-pointer font-mono text-xs font-bold uppercase"
+                                title={t('chat')}
+                              >
+                                <span className="material-symbols-outlined text-[15px] text-[#caf300]">chat</span>
+                                <span>{t('chat')}</span>
+                              </button>
+                            </div>
 
-                            {/* +50 Cash */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                soundFX.playCash();
-                                onSweetenOffer?.(offer.id, '', 50);
-                                flashToast(t('sweetenCashToast'));
-                              }}
-                              className="px-2.5 py-2.5 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-[#caf300] font-mono text-xs font-bold uppercase border border-[#caf300]/30 cursor-pointer"
-                            >
-                              {t('sweetenCashBtn')}
-                            </button>
+                            <div className="grid grid-cols-2 gap-2">
+                              {/* Stand Firm */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  soundFX.playClick();
+                                  onStandFirm?.(offer.id);
+                                  flashToast(t('stoodFirmToast'));
+                                }}
+                                className="py-2 px-2.5 rounded-xl bg-[#18181a] hover:bg-[#201f21] text-[#c5c9ac] hover:text-[#caf300] font-mono text-[11px] font-bold uppercase border border-white/5 flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                                title="Stand firm: Original proposal stands"
+                              >
+                                <span className="material-symbols-outlined text-[13px]">shield</span>
+                                <span>{t('standFirmBtn')}</span>
+                              </button>
 
-                            {/* Swap Piece */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                soundFX.playClick();
-                                onEditOffer?.(offer);
-                              }}
-                              className="w-10 h-10 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-[#caf300] font-mono text-xs font-bold uppercase flex items-center justify-center border border-white/10 cursor-pointer shrink-0"
-                              title={t('editSweetenBtn')}
-                            >
-                              <span className="material-symbols-outlined text-[16px]">edit_note</span>
-                            </button>
-
-                            {/* Chat */}
-                            <button
-                              type="button"
-                              onClick={() => handleOpenChat(offer)}
-                              className="w-10 h-10 rounded-xl bg-[#201f21] hover:bg-[#2a2a2c] text-[#8f9378] hover:text-white font-mono text-xs font-bold uppercase flex items-center justify-center border border-white/10 cursor-pointer shrink-0"
-                              title={t('chat')}
-                            >
-                              <span className="material-symbols-outlined text-[16px]">chat</span>
-                            </button>
+                              {/* Swap Piece / Edit */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  soundFX.playClick();
+                                  onEditOffer?.(offer);
+                                }}
+                                className="py-2 px-2.5 rounded-xl bg-[#18181a] hover:bg-[#201f21] text-[#caf300] font-mono text-[11px] font-bold uppercase flex items-center justify-center gap-1 border border-white/5 cursor-pointer transition-colors"
+                                title={t('editSweetenBtn')}
+                              >
+                                <span className="material-symbols-outlined text-[14px]">edit_note</span>
+                                <span>{t('edit')}</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ) : (

@@ -31,7 +31,6 @@ import { RequestSwapModal } from './components/modals/RequestSwapModal';
 import { EditOfferModal } from './components/modals/EditOfferModal';
 import { AuthGateModal } from './components/modals/AuthGateModal';
 import { LanguageSelectModal } from './components/modals/LanguageSelectModal';
-import { LiveRadarModal } from './components/modals/LiveRadarModal';
 import { InteractiveNotificationBanner } from './components/notifications/InteractiveNotificationBanner';
 import { telemetryService } from './services/telemetry';
 import { tagClarityUser } from './services/clarity';
@@ -160,7 +159,6 @@ export default function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isScanOpen, setIsScanOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
-  const [isLiveRadarOpen, setIsLiveRadarOpen] = useState(false);
 
   // Active Telemetry and Session Observability (MCP / Live Pulse)
   useEffect(() => {
@@ -306,22 +304,6 @@ export default function App() {
       )
     );
   }, [offers]);
-  // Show incoming pending trade notification on app launch for quick 1-tap accept/decline
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const incomingPending = offers.find((o) => {
-        if (o.direction === 'sent' || (o.status !== 'pending' && o.status !== 'maybe')) return false;
-        const garmentObj = garments.find((g) => g.id === o.theirItem.id);
-        if (garmentObj?.isTraded) return false;
-        return true;
-      });
-      if (incomingPending) {
-        setBannerOffer(incomingPending);
-      }
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, []);
 
   // Firebase auth state subscription & Live Firestore Sync
   useEffect(() => {
@@ -1057,6 +1039,7 @@ export default function App() {
   };
 
   const handleOpenEditOffer = (offer: SwapOffer) => {
+    setBannerOffer(null);
     setEditingOffer(offer);
     setIsEditOfferOpen(true);
   };
@@ -1076,6 +1059,29 @@ export default function App() {
           const currentRounds = o.negotiationRounds || 1;
           const nextRounds = Math.min(3, currentRounds + 1);
           const primaryItem = selectedItems[0];
+          const newMsgText = `Revised proposal (Round ${nextRounds}/3): ${
+            isBundle
+              ? `Bundled ${selectedItems.length} pieces (${selectedItems.map((i) => i.title).join(' + ')})`
+              : `Offering ${primaryItem.title}`
+          }${cashTopUp > 0 ? ` + ${cashTopUp} EGP cash on top` : ''}${note ? `. Note: "${note}"` : ''}`;
+
+          // Avoid duplicating identical consecutive messages
+          const existingMsgs = o.messages || [];
+          const lastMsg = existingMsgs[existingMsgs.length - 1];
+          const shouldAppendMsg = !lastMsg || lastMsg.text !== newMsgText;
+
+          const updatedMessages = shouldAppendMsg
+            ? [
+                ...existingMsgs,
+                {
+                  id: `msg-${Date.now()}`,
+                  sender: 'you' as const,
+                  text: newMsgText,
+                  timestamp: 'Just now',
+                },
+              ]
+            : existingMsgs;
+
           const revisedOffer: SwapOffer = {
             ...o,
             status: 'pending',
@@ -1100,24 +1106,9 @@ export default function App() {
             tradeRatio: isBundle ? `${selectedItems.length}:1` : '1:1',
             cashTopUp,
             counterDetails: note ? { note, cashTopUp } : undefined,
-            messages: [
-              ...(o.messages || []),
-              {
-                id: `msg-${Date.now()}`,
-                sender: 'you' as const,
-                text: `Revised proposal (Round ${nextRounds}/3): ${
-                  isBundle
-                    ? `Bundled ${selectedItems.length} pieces (${selectedItems.map((i) => i.title).join(' + ')})`
-                    : `Offering ${primaryItem.title}`
-                }${cashTopUp > 0 ? ` + ${cashTopUp} EGP cash on top` : ''}${note ? `. Note: "${note}"` : ''}`,
-                timestamp: 'Just now',
-              },
-            ],
+            messages: updatedMessages,
           };
 
-          if (bannerOffer?.id === offerId) {
-            setBannerOffer(revisedOffer);
-          }
           if (currentUser?.uid) {
             updateOfferInFirestore(offerId, revisedOffer);
           }
@@ -1127,6 +1118,7 @@ export default function App() {
       })
     );
 
+    setBannerOffer(null);
     soundFX.playMatch();
     setIsEditOfferOpen(false);
     setEditingOffer(null);
@@ -1390,7 +1382,6 @@ export default function App() {
         unreadCount={actionableOffersCount}
         currentUser={currentUser}
         onSignOut={handleSignOut}
-        onOpenLiveRadar={() => setIsLiveRadarOpen(true)}
         onPlayBrandIntro={() => {
           setShowBrandToast(true);
           setTimeout(() => setShowBrandToast(false), 2400);
@@ -1414,7 +1405,7 @@ export default function App() {
 
       {/* Interactive Drop-Down Trade Notification Banner (Direct 1-tap Accept/Decline/Edit) */}
       <InteractiveNotificationBanner
-        incomingOffer={bannerOffer}
+        incomingOffer={isEditOfferOpen ? null : bannerOffer}
         onAcceptOffer={handleAcceptOffer}
         onDeclineOffer={handleDeclineOffer}
         onOpenChat={(offer) => {
@@ -1516,7 +1507,6 @@ export default function App() {
           completedOffers={offers.filter((o) => o.status === 'completed' || o.status === 'accepted')}
           onClearDemoCloset={handleClearDemoCloset}
           onResetDemoData={handleResetDemoData}
-          onOpenLiveRadar={() => setIsLiveRadarOpen(true)}
           onSignOut={() => {
             handleSignOut();
             window.localStorage.removeItem('swap_launch_auth_completed');
@@ -1605,13 +1595,6 @@ export default function App() {
         offer={editingOffer}
         userWardrobe={wardrobe}
         onSaveRevisedOffer={handleSaveRevisedOffer}
-        onNudgeOffer={handleMaybeOffer}
-      />
-
-      {/* Live Observability / MCP Operations Radar Modal */}
-      <LiveRadarModal
-        isOpen={isLiveRadarOpen}
-        onClose={() => setIsLiveRadarOpen(false)}
       />
     </div>
   );

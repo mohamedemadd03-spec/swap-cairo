@@ -23,11 +23,11 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
   offer,
   userWardrobe,
   onSaveRevisedOffer,
-  onNudgeOffer,
 }) => {
   const { language, t } = useLanguage();
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [cashTopUp, setCashTopUp] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (offer) {
@@ -37,6 +37,7 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
           : [offer.yourItem.id];
       setSelectedItemIds(initialIds);
       setCashTopUp(offer.cashTopUp || 0);
+      setIsSubmitting(false);
     }
   }, [offer]);
 
@@ -62,18 +63,11 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
   };
 
   const handleSave = () => {
-    if (selectedItems.length === 0) return;
+    if (selectedItems.length === 0 || isSubmitting) return;
+    setIsSubmitting(true);
     triggerHaptic('trade');
     soundFX.playMatch();
     onSaveRevisedOffer(offer.id, selectedItems, cashTopUp);
-    onClose();
-  };
-
-  const handleNudge = () => {
-    if (!offer) return;
-    triggerHaptic('click');
-    soundFX.playClick();
-    onNudgeOffer?.(offer.id);
     onClose();
   };
 
@@ -267,33 +261,27 @@ export const EditOfferModal: React.FC<EditOfferModalProps> = ({
           </div>
         </div>
 
-        {/* 4. SUBMIT BAR (Includes 1-Tap Nudge without going to chat) */}
+        {/* 4. SUBMIT BAR */}
         <div className="flex items-center gap-2 pt-0.5">
           <button
             type="button"
             onClick={onClose}
-            className="py-3 px-3.5 rounded-xl bg-[#131315] text-[#c6c6c7] hover:text-white font-mono text-xs uppercase cursor-pointer transition-colors"
+            className="py-3 px-4 rounded-xl bg-[#131315] text-[#c6c6c7] hover:text-white font-mono text-xs uppercase cursor-pointer transition-colors"
           >
             {language === 'ar' ? 'إلغاء' : language === 'fr' ? 'Annuler' : 'Cancel'}
           </button>
-          {onNudgeOffer && (
-            <button
-              type="button"
-              onClick={handleNudge}
-              className="py-3 px-3.5 rounded-xl bg-[#18181a] hover:bg-[#201f21] text-[#caf300] font-mono font-bold text-xs uppercase flex items-center justify-center gap-1 border border-[#caf300]/40 cursor-pointer transition-colors"
-            >
-              <span className="material-symbols-outlined text-[15px]">bolt</span>
-              <span>{language === 'ar' ? 'تنبيه الشريك' : language === 'fr' ? 'Relancer' : 'Nudge'}</span>
-            </button>
-          )}
           <button
             type="button"
-            disabled={selectedItems.length === 0}
+            disabled={selectedItems.length === 0 || isSubmitting}
             onClick={handleSave}
             className="flex-1 py-3 rounded-xl bg-[#caf300] text-[#171e00] font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 hover:brightness-110 active:scale-98 transition-all cursor-pointer shadow-lg shadow-[#caf300]/20 disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-[17px]">check_circle</span>
-            <span>{language === 'ar' ? 'حفظ وتحديث العرض' : language === 'fr' ? 'Mettre à jour' : 'Update Trade'}</span>
+            <span>
+              {isSubmitting
+                ? language === 'ar' ? 'جاري الحفظ...' : 'Saving...'
+                : language === 'ar' ? 'حفظ وتحديث العرض' : language === 'fr' ? 'Mettre à jour' : 'Update Trade'}
+            </span>
           </button>
         </div>
       </div>

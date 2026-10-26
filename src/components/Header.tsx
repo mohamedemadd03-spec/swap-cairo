@@ -16,7 +16,6 @@ interface HeaderProps {
   currentUser: User | null;
   onSignOut: () => void;
   onPlayBrandIntro?: () => void;
-  onOpenLiveRadar?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,23 +25,12 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onSignOut,
   onPlayBrandIntro,
-  onOpenLiveRadar,
 }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [logoClicks, setLogoClicks] = useState<number[]>([]);
   const { language, toggleLanguage, t } = useLanguage();
 
   const handleLogoClick = () => {
     onPlayBrandIntro?.();
-    const now = Date.now();
-    const recent = [...logoClicks.filter((t) => now - t < 1500), now];
-    setLogoClicks(recent);
-
-    if (recent.length >= 3) {
-      setLogoClicks([]);
-      soundFX.playMatch();
-      onOpenLiveRadar?.();
-    }
   };
 
   return (

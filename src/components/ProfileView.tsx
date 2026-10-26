@@ -19,7 +19,6 @@ interface ProfileViewProps {
   onClearDemoCloset?: () => void;
   onResetDemoData?: () => void;
   onSignOut?: () => void;
-  onOpenLiveRadar?: () => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -35,9 +34,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onClearDemoCloset,
   onResetDemoData,
   onSignOut,
-  onOpenLiveRadar,
 }) => {
-  const [proximityAudioEnabled, setProximityAudioEnabled] = useState(true);
   const [hapticsEnabled, setHapticsEnabled] = useState(() => hapticEngine.getEnabled());
   const [activeSection, setActiveSection] = useState<'hubs' | 'receipts' | 'watchlist' | 'charter'>('hubs');
   const { language, setLanguage, toggleLanguage, t } = useLanguage();
@@ -291,39 +288,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </section>
         )}
 
-        {/* SECTION 1: HUBS & 100m RADAR */}
+        {/* SECTION 1: HUBS & SENSORY CONTROLS */}
         {activeSection === 'hubs' && (
           <div className="flex flex-col gap-3 animate-in fade-in">
-            {/* 100-Meter Proximity Sound Radar ("StreetPass" Mode) */}
-            <section className="p-3 rounded-xl bg-[#201f21] border border-[#caf300]/40 flex items-center justify-between gap-2 shadow-sm">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="material-symbols-outlined text-[#caf300] text-[20px] shrink-0">radar</span>
-                <div className="min-w-0">
-                  <h2 className="font-mono text-xs font-bold uppercase text-white truncate">
-                    {t('radarTitle')}
-                  </h2>
-                  <span className="font-mono text-[9.5px] text-[#c5c9ac] block truncate">
-                    {t('radarSub')}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('light');
-                  soundFX.playClick();
-                  setProximityAudioEnabled(!proximityAudioEnabled);
-                }}
-                className={`px-3 py-1 rounded-full font-mono text-[10px] font-bold uppercase cursor-pointer transition-colors shrink-0 ${
-                  proximityAudioEnabled
-                    ? 'bg-[#caf300] text-[#171e00]'
-                    : 'bg-[#131315] text-[#8f9378] border border-white/10'
-                }`}
-              >
-                {proximityAudioEnabled ? t('radarActive') : t('radarMuted')}
-              </button>
-            </section>
-
             {/* Haptic Engine Vibrations Control Card */}
             <section className="p-3 rounded-xl bg-[#201f21] border border-[#caf300]/40 flex items-center justify-between gap-2 shadow-sm">
               <div className="flex items-center gap-2 min-w-0">
@@ -539,43 +506,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </button>
             </div>
           </div>
-          {/* Live Telemetry / MCP Observability Radar Button */}
-          {onOpenLiveRadar && (
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#131315] border border-[#caf300]/30 font-mono shadow-sm">
-              <div className="flex items-center gap-2.5">
-                <div className="relative flex items-center justify-center w-2.5 h-2.5">
-                  <span className="absolute w-2.5 h-2.5 rounded-full bg-[#caf300] opacity-75 animate-ping" />
-                  <span className="relative w-1.5 h-1.5 rounded-full bg-[#caf300]" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-white block">
-                      {language === 'ar' ? 'رادار سواب المباشر' : 'Live Operations Radar'}
-                    </span>
-                    <span className="text-[8.5px] px-1 py-0.2 rounded bg-[#caf300]/15 text-[#caf300] font-bold">
-                      MCP
-                    </span>
-                  </div>
-                  <span className="text-[9.5px] text-[#8f9378] block">
-                    {language === 'ar' ? 'مراقبة حركة الزوار والسيرفر لحظياً' : 'Real-time telemetry & active swappers'}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('light');
-                  soundFX.playClick();
-                  onOpenLiveRadar();
-                }}
-                className="px-3 py-1.5 rounded-xl bg-[#caf300] hover:bg-[#d6ff1a] text-black font-mono text-[11px] font-black uppercase transition-colors cursor-pointer flex items-center gap-1 active:scale-95 shadow-sm"
-              >
-                <span className="material-symbols-outlined text-[14px]">radar</span>
-                <span>{language === 'ar' ? 'فتح الرادار' : 'Open Radar'}</span>
-              </button>
-            </div>
-          )}
 
           {/* PWA Mobile Installation Trigger */}
           <PWAInstallButton />
