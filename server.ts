@@ -86,6 +86,21 @@ function generateSafeUser(user: ServerUser) {
   return safe;
 }
 
+
+function isDemoGarment(g: any): boolean {
+  if (!g || typeof g !== 'object') return true;
+  const id = String(g.id || '');
+  const img = String(g.imageUrl || '');
+  const front = String(g.angles?.front || '');
+  const owner = String(g.owner?.handle || '');
+  return (
+    id.startsWith('garment-') ||
+    img.includes('googleusercontent.com/aida-public') ||
+    front.includes('googleusercontent.com/aida-public') ||
+    ['@OmarK', '@nour_gorp', '@salma_archive', '@youssef_fits'].includes(owner)
+  );
+}
+
 function readServerDb(): ServerDatabaseState | null {
   try {
     if (!fs.existsSync(DB_FILE)) return null;
@@ -1017,11 +1032,54 @@ app.post('/api/lockers/verify-handshake', (req, res) => {
  */
 app.get('/api/state', (_req, res) => {
   const dbState = readServerDb();
+  if (!dbState) {
+    return res.json({ success: true, hasSavedState: false, state: null });
+  }
+  const deletedSet = new Set(dbState.deletedGarmentIds || []);
+  const cleanGarments = (dbState.garments || []).filter((g: any) => !deletedSet.has(g.id) && !isDemoGarment(g));
   return res.json({
     success: true,
-    hasSavedState: Boolean(dbState),
-    state: dbState || null,
+    hasSavedState: true,
+    state: {
+      ...dbState,
+      garments: cleanGarments,
+    },
   });
+});
+
+app.get('/api/garments', (_req, res) => {
+  try {
+    const dbState = readServerDb() || {};
+    const deletedSet = new Set(dbState.deletedGarmentIds || []);
+    const cleanGarments = (dbState.garments || []).filter((g: any) => !deletedSet.has(g.id) && !isDemoGarment(g));
+    return res.json({ success: true, garments: cleanGarments });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to fetch garments' });
+  }
+});
+
+app.post('/api/garments', (req, res) => {
+  try {
+    const garment = req.body;
+    if (!garment || !garment.id || !garment.title || isDemoGarment(garment)) {
+      return res.status(400).json({ success: false, error: 'Valid human garment required' });
+    }
+
+    const dbState = readServerDb() || {};
+    const deletedSet = new Set(dbState.deletedGarmentIds || []);
+    if (deletedSet.has(garment.id)) {
+      return res.status(400).json({ success: false, error: 'Garment has been deleted' });
+    }
+
+    const existing = (dbState.garments || []).filter((g: any) => g.id !== garment.id && !isDemoGarment(g));
+    const nextGarments = [garment, ...existing].slice(0, 200);
+
+    writeServerDb({ garments: nextGarments });
+
+    return res.json({ success: true, garment });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to save garment' });
+  }
 });
 
 app.post('/api/sync', (req, res) => {
@@ -1031,7 +1089,7 @@ app.post('/api/sync', (req, res) => {
     const deletedSet = new Set(dbState.deletedGarmentIds || []);
 
     const cleanGarments = Array.isArray(garments)
-      ? garments.filter((g) => !deletedSet.has(g.id)).slice(0, 100)
+      ? garments.filter((g) => !deletedSet.has(g.id) && !isDemoGarment(g)).slice(0, 100)
       : undefined;
     const cleanWardrobe = Array.isArray(wardrobe)
       ? wardrobe.filter((w) => !deletedSet.has(w.id)).slice(0, 100)
@@ -1080,7 +1138,7 @@ app.post('/api/garments/:id/signal', (req, res) => {
     }
 
     const dbState = readServerDb() || {};
-    const garments = dbState.garments || [];
+    const garments = (dbState.garments || []).filter((g: any) => !isDemoGarment(g));
     const garment = garments.find((g: any) => g.id === id);
 
     if (!garment) {

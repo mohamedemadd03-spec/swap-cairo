@@ -1,11 +1,25 @@
 import { Garment, WardrobeItem, SwapOffer } from '../types/swap';
+export function isDemoGarment(g: any): boolean {
+  if (!g || typeof g !== 'object') return true;
+  const id = String(g.id || '');
+  const img = String(g.imageUrl || '');
+  const front = String(g.angles?.front || '');
+  const owner = String(g.owner?.handle || '');
+  return (
+    id.startsWith('garment-') ||
+    img.includes('googleusercontent.com/aida-public') ||
+    front.includes('googleusercontent.com/aida-public') ||
+    ['@OmarK', '@nour_gorp', '@salma_archive', '@youssef_fits'].includes(owner)
+  );
+}
+
 
 const STORAGE_KEYS = {
-  GARMENTS: 'swap_prod_v2_garments',
-  WARDROBE: 'swap_prod_v2_wardrobe',
-  OFFERS: 'swap_prod_v2_offers',
-  TRUST_POINTS: 'swap_prod_v2_trust_points',
-  HUB_ID: 'swap_prod_v2_hub_id',
+  GARMENTS: 'swap_prod_v5_garments',
+  WARDROBE: 'swap_prod_v5_wardrobe',
+  OFFERS: 'swap_prod_v5_offers',
+  TRUST_POINTS: 'swap_prod_v5_trust_points',
+  HUB_ID: 'swap_prod_v5_hub_id',
 };
 
 export interface PersistedAppState {
@@ -44,8 +58,20 @@ export function loadInitialPersistedState(defaults: {
   userTrustPoints: number;
   preferredHubId: string;
 }) {
+  if (typeof window !== 'undefined') {
+    try {
+      ['swap_prod_v1_garments', 'swap_prod_v2_garments', 'swap_prod_v3_garments', 'swap_prod_v4_garments'].forEach((k) => {
+        window.localStorage.removeItem(k);
+      });
+    } catch {}
+  }
+  const loadedGarments = loadFromLocalStorage<Garment[]>(STORAGE_KEYS.GARMENTS, defaults.garments);
+  const cleanGarments = Array.isArray(loadedGarments)
+    ? loadedGarments.filter((g) => !isDemoGarment(g))
+    : [];
+
   return {
-    garments: loadFromLocalStorage(STORAGE_KEYS.GARMENTS, defaults.garments),
+    garments: cleanGarments,
     wardrobe: loadFromLocalStorage(STORAGE_KEYS.WARDROBE, defaults.wardrobe),
     offers: loadFromLocalStorage(STORAGE_KEYS.OFFERS, defaults.offers),
     userTrustPoints: loadFromLocalStorage(STORAGE_KEYS.TRUST_POINTS, defaults.userTrustPoints),
@@ -56,7 +82,7 @@ export function loadInitialPersistedState(defaults: {
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function persistStateEverywhere(state: PersistedAppState, onSyncComplete?: () => void): void {
-  if (state.garments) saveToLocalStorage(STORAGE_KEYS.GARMENTS, state.garments);
+  if (state.garments) saveToLocalStorage(STORAGE_KEYS.GARMENTS, state.garments.filter((g) => !isDemoGarment(g)));
   if (state.wardrobe) saveToLocalStorage(STORAGE_KEYS.WARDROBE, state.wardrobe);
   if (state.offers) saveToLocalStorage(STORAGE_KEYS.OFFERS, state.offers);
   if (typeof state.userTrustPoints === 'number') {

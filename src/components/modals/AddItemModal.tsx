@@ -433,6 +433,22 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
                 />
               </label>
             </div>
+
+            {step === 'tag' && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  setTagPhoto(frontPhoto);
+                  stopCameraStream();
+                  analyzePhotos(frontPhoto, frontPhoto);
+                  setStep('details');
+                }}
+                className="py-1.5 text-center font-mono text-[11px] text-[#8f9378] hover:text-[#caf300] cursor-pointer transition-colors"
+              >
+                {isAr ? 'تخطي تصوير التيك (استخدام الصورة الأساسية) ←' : 'Skip Tag Photo (Use Front Photo) →'}
+              </button>
+            )}
           </div>
         )}
 

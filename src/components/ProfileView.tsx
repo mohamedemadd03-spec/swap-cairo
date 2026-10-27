@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { Garment, HubLocation, SwapOffer } from '../types/swap';
 import { soundFX, triggerHaptic } from '../hooks/useSoundFX';
@@ -22,6 +22,7 @@ interface ProfileViewProps {
   onClearDemoCloset?: () => void;
   onResetDemoData?: () => void;
   onSignOut?: () => void;
+  onUpdateUser?: (updatedUser: any) => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -38,6 +39,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onClearDemoCloset,
   onResetDemoData,
   onSignOut,
+  onUpdateUser,
 }) => {
   const [hapticsEnabled, setHapticsEnabled] = useState(() => hapticEngine.getEnabled());
   const [activeSection, setActiveSection] = useState<'hubs' | 'receipts' | 'watchlist' | 'charter'>('hubs');
@@ -47,6 +49,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.photoURL || '');
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (currentUser?.photoURL) {
+      setAvatarUrl(currentUser.photoURL);
+    }
+  }, [currentUser?.photoURL]);
 
   const rankInfo = calculateUserRank(userTrustPoints);
 
@@ -93,6 +101,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         if (currentUser?.uid) {
           const updated = { ...currentUser, photoURL: compressedDataUrl };
           authService.setStoredUser(updated);
+          onUpdateUser?.(updated);
           try {
             await fetch('/api/auth/update-profile', {
               method: 'POST',

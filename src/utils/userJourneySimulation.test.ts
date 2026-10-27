@@ -15,9 +15,139 @@ import {
   calculateClosetSynergyScore,
 } from '../services/recommendationEngine';
 import { Garment, WardrobeItem, SwapOffer } from '../types/swap';
-import { INITIAL_GARMENTS, INITIAL_WARDROBE } from '../data/mockData';
+import { INITIAL_WARDROBE } from '../data/mockData';
 
 // ==============================================================================
+
+const MOCK_TEST_GARMENTS: Garment[] = [
+  {
+    id: 'test-garment-1',
+    title: 'Vintage Nike Center Swoosh Hoodie',
+    brand: 'Nike',
+    lot: 'LOT #CAI-8809',
+    estValue: 450,
+    buyoutPrice: 500,
+    currency: 'EGP',
+    condition: '9.5 / 10',
+    size: "MEN'S L",
+    badge: 'AUTHENTIC VINTAGE',
+    archiveTag: 'ORIGINAL ARCHIVE',
+    distance: '2.3 KM',
+    city: 'Maadi, Cairo',
+    owner: { name: 'Omar K.', handle: '@OmarK', isPro: true, rating: 4.9, swapCount: 38, avatarUrl: '', location: 'Degla, Maadi' },
+    tags: ['#RETRO', '#90S', '#CAIROTHRIFT'],
+    imageUrl: 'https://example.com/nike.jpg',
+    angles: { front: 'https://example.com/item.jpg', back: 'https://example.com/item.jpg' },
+    description: 'Vintage Nike hoodie',
+    category: 'hoodie',
+  },
+  {
+    id: 'test-garment-2',
+    title: "Arc'teryx Alpha SV Gore-Tex Shell",
+    brand: "Arc'teryx",
+    lot: 'LOT #CAI-9921',
+    estValue: 1400,
+    buyoutPrice: 1550,
+    currency: 'EGP',
+    condition: '9.2 / 10',
+    size: "MEN'S M",
+    badge: 'TECHNICAL GRAIL',
+    archiveTag: '3-LAYER GORE-TEX',
+    distance: '3.1 KM',
+    city: 'New Maadi',
+    owner: { name: 'Nour El Din', handle: '@nour_gorp', isPro: true, rating: 5.0, swapCount: 42, avatarUrl: '', location: 'Maadi Hub' },
+    tags: ['#GORPCORE', '#ARCTERYX', '#WATERPROOF'],
+    imageUrl: 'https://example.com/arcteryx.jpg',
+    angles: { front: 'https://example.com/item.jpg', back: 'https://example.com/item.jpg' },
+    description: 'Deadstock waterproof shell',
+    category: 'jacket',
+  },
+  {
+    id: 'test-garment-3',
+    title: 'Supreme Box Logo Heavyweight Hoodie',
+    brand: 'Supreme',
+    lot: 'LOT #CAI-1209',
+    estValue: 1800,
+    buyoutPrice: 1950,
+    currency: 'EGP',
+    condition: '9.8 / 10',
+    size: "MEN'S L",
+    badge: 'STREET GRAIL',
+    archiveTag: 'COLLECTOR SPEC',
+    distance: '1.8 KM',
+    city: 'Sarayat El Maadi',
+    owner: { name: 'Salma T.', handle: '@salma_archive', isPro: true, rating: 4.8, swapCount: 29, avatarUrl: '', location: 'Road 9 Hub' },
+    tags: ['#BOGO', '#SUPREME', '#HEAVYWEIGHT'],
+    imageUrl: 'https://example.com/supreme.jpg',
+    angles: { front: 'https://example.com/item.jpg', back: 'https://example.com/item.jpg' },
+    description: 'Supreme box logo hoodie',
+    category: 'hoodie',
+  },
+  {
+    id: 'test-garment-4',
+    title: 'Stüssy 8-Ball Mohair Knit Sweater',
+    brand: 'Stüssy',
+    lot: 'LOT #CAI-4402',
+    estValue: 800,
+    buyoutPrice: 900,
+    currency: 'EGP',
+    condition: '9.6 / 10',
+    size: "MEN'S M",
+    badge: 'MOHAIR ARCHIVE',
+    archiveTag: 'SEASON GRAIL',
+    distance: '4.2 KM',
+    city: 'Degla, Maadi',
+    owner: { name: 'Youssef H.', handle: '@youssef_fits', isPro: false, rating: 4.7, swapCount: 14, avatarUrl: '', location: 'Degla Hub' },
+    tags: ['#STUSSY', '#MOHAIR', '#8BALL'],
+    imageUrl: 'https://example.com/stussy.jpg',
+    angles: { front: 'https://example.com/item.jpg', back: 'https://example.com/item.jpg' },
+    description: 'Iconic jacquard knit',
+    category: 'hoodie',
+  },
+  {
+    id: 'test-garment-5',
+    title: 'Carhartt WIP Detroit Jacket Faded Black',
+    brand: 'Carhartt',
+    lot: 'LOT #CAI-3301',
+    estValue: 950,
+    buyoutPrice: 1050,
+    currency: 'EGP',
+    condition: '9.4 / 10',
+    size: "MEN'S L",
+    badge: 'WORKWEAR GRAIL',
+    archiveTag: 'BLANKET LINED',
+    distance: '1.2 KM',
+    city: 'Degla Hub #04',
+    owner: { name: 'Salma T.', handle: '@salma_archive', isPro: true, rating: 4.8, swapCount: 29, avatarUrl: '', location: 'Degla Hub #04' },
+    tags: ['#CARHARTTWIP', '#DETROITJACKET', '#VINTAGEBLACK'],
+    imageUrl: 'https://example.com/carhartt.jpg',
+    angles: { front: 'https://example.com/item.jpg', back: 'https://example.com/item.jpg' },
+    description: 'Detroit jacket',
+    category: 'jacket',
+  },
+  {
+    id: 'test-garment-6',
+    title: 'Salomon XT-6 Triple Phantom Black',
+    brand: 'Salomon',
+    lot: 'LOT #CAI-6610',
+    estValue: 1100,
+    buyoutPrice: 1250,
+    currency: 'EGP',
+    condition: '9.8 / 10',
+    size: 'EU 43',
+    badge: 'TRAIL GRAIL',
+    archiveTag: 'CONTAGRIP SOLE',
+    distance: '1.4 KM',
+    city: 'Corniche, Maadi',
+    owner: { name: 'Omar K.', handle: '@OmarK', isPro: true, rating: 4.9, swapCount: 38, avatarUrl: '', location: 'Degla Hub #04' },
+    tags: ['#SALOMON', '#XT6', '#GORPCORE'],
+    imageUrl: 'https://example.com/salomon.jpg',
+    angles: { front: 'https://example.com/item.jpg', back: 'https://example.com/item.jpg' },
+    description: 'Triple black trail runners',
+    category: 'shoes',
+  },
+];
+
 // 1. END-TO-END SIMULATED REAL USER JOURNEY
 // ==============================================================================
 
@@ -74,7 +204,7 @@ test('User Journey 1: Complete Barter Lifecycle (Discover -> Propose -> Negotiat
       avatarUrl: 'https://example.com/avatar.jpg',
       location: 'Degla Hub',
     },
-    angles: { front: '', back: '' },
+    angles: { front: 'https://example.com/item.jpg', back: 'https://example.com/item.jpg' },
     description: '3-layer Gore-Tex waterproof jacket',
     lot: 'LOT #CAI-1400',
     tags: ['#GORPCORE', '#WATERPROOF'],
@@ -212,7 +342,7 @@ test('User Journey 2: Browsing & Rapid Swipe Session (Silent Taste Learning & In
   let profile = loadTasteProfile();
   const sessionSwiped = new Set<string>();
 
-  const testFeed = [...INITIAL_GARMENTS];
+  const testFeed = [...MOCK_TEST_GARMENTS];
   assert.ok(testFeed.length >= 6);
 
   // 1. Initial state: user has 0 swipes
@@ -312,7 +442,7 @@ test('Security Audit 2: Extreme Boundaries, Integer Floats & Currency Formatting
   assert.equal(hugeDelta.cashAmount, 999900);
 
   // Filter boundary checks with impossible price range [5000, 100]
-  const invertedFilter = filterGarments(INITIAL_GARMENTS, {
+  const invertedFilter = filterGarments(MOCK_TEST_GARMENTS, {
     category: 'all',
     priceRange: [5000, 100],
     maxDistanceKm: 15,
@@ -325,7 +455,7 @@ test('Security Audit 2: Extreme Boundaries, Integer Floats & Currency Formatting
 });
 
 test('Security Audit 3: Closet Synergy with Empty or Locked Wardrobes', () => {
-  const target = INITIAL_GARMENTS[0];
+  const target = MOCK_TEST_GARMENTS[0];
 
   // Empty wardrobe
   const emptyResult = calculateClosetSynergyScore(target, []);

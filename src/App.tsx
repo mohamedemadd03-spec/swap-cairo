@@ -63,6 +63,7 @@ import {
   persistStateEverywhere,
   fetchServerPersistedState,
   resetAllPersistedData,
+  isDemoGarment,
 } from './services/dataSync';
 
 export default function App() {
@@ -198,7 +199,7 @@ export default function App() {
         const deletedSet = new Set(serverState.deletedGarmentIds || []);
 
         if (Array.isArray(serverState.garments)) {
-          const activeGarments = serverState.garments.filter((g: any) => !deletedSet.has(g.id));
+          const activeGarments = serverState.garments.filter((g: any) => !deletedSet.has(g.id) && !isDemoGarment(g));
           setGarments(activeGarments);
         }
         if (Array.isArray(serverState.wardrobe)) {
@@ -1260,32 +1261,63 @@ export default function App() {
     // Award +15 Trust Points for expanding closet and listing pieces
     setUserTrustPoints((prev) => prev + 15);
 
+    const activeUser = authService.getStoredUser() || currentUser;
+
+    const realDisplayName =
+      activeUser?.displayName ||
+      (activeUser?.handle ? activeUser.handle.replace(/^@/, '') : '') ||
+      (activeUser?.phoneNumber ? activeUser.phoneNumber : 'Swapper');
+
+    const rawHandle =
+      activeUser?.handle ||
+      (activeUser?.displayName ? activeUser.displayName.toLowerCase().replace(/\s+/g, '_') : '') ||
+      (activeUser?.phoneNumber ? activeUser.phoneNumber : 'swapper');
+
+    const realHandle = rawHandle.startsWith('@') ? rawHandle : `@${rawHandle}`;
+
+    const realAvatar =
+      activeUser?.photoURL ||
+      `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(realHandle)}`;
+
+    const realLocation =
+      currentHub.name ||
+      activeUser?.preferredHub ||
+      'مدينة السلام';
+
+    const completedCount = offers.filter((o) => o.status === 'completed').length;
+    const totalSwaps = typeof activeUser?.swapCount === 'number' && activeUser.swapCount > 0
+      ? activeUser.swapCount
+      : completedCount;
+    const userRating = typeof activeUser?.rating === 'number' && activeUser.rating > 0
+      ? activeUser.rating
+      : 5.0;
+
+    // Extract brand intelligently from title
+    const firstWord = newItem.title.trim().split(/\s+/)[0] || 'Vintage';
+    const cleanBrand = firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
+
     telemetryService.trackEvent('view_item', {
       summaryAr: `أضاف قطعة جديدة للدولاب: ${newItem.title}`,
       summaryEn: `Added piece to wardrobe: ${newItem.title}`,
-      userHandle: currentUser?.displayName || '@swapper_cairo',
+      userHandle: realHandle,
       metadata: { title: newItem.title, value: newItem.value },
     });
-
-    const userHandle = currentUser?.handle
-      ? (currentUser.handle.startsWith('@') ? currentUser.handle : `@${currentUser.handle}`)
-      : (currentUser?.displayName ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '_')}` : (currentUser?.phoneNumber ? currentUser.phoneNumber : '@swapper_cairo'));
-    const completedCount = offers.filter((o) => o.status === 'completed').length;
 
     // Also publish the uploaded piece to the neighborhood feed
     const newFeedGarment: Garment = {
       id: newItem.id,
       title: newItem.title,
-      brand: newItem.title.split(' ')[0] || 'Vintage',
-      lot: `LOT #${newItem.id.slice(-4).toUpperCase()}`,
+      brand: cleanBrand,
+      lot: `LOT #CAI-${newItem.id.slice(-4).toUpperCase()}`,
       estValue: newItem.value,
+      buyoutPrice: Math.round(newItem.value * 1.15),
       currency: newItem.currency || 'EGP',
       condition: newItem.condition || '9.8 / 10 MINT',
       size: newItem.size,
       badge: newItem.isLiveCameraVerified ? 'LIVE CAM VERIFIED' : 'JUST LISTED',
-      archiveTag: 'LOCAL VAULT',
+      archiveTag: 'CAIRO VAULT',
       distance: '0.1 km',
-      city: currentHub.name,
+      city: currentHub.name || realLocation,
       lat: newItem.lat || currentHub.lat,
       lng: newItem.lng || currentHub.lng,
       internalScore: 65,
@@ -1296,18 +1328,25 @@ export default function App() {
       isLiveCameraVerified: newItem.isLiveCameraVerified,
       description: newItem.description || `Authentic ${newItem.title}. Ready for 1-to-1 barter.`,
       category: newItem.category || 'tees',
-      owner: {
-        name: currentUser?.displayName || currentUser?.handle || 'سوابر',
-        handle: userHandle,
-        isPro: completedCount >= 2,
-        rating: completedCount > 0 ? 5.0 : 0,
-        swapCount: completedCount,
-        avatarUrl:
-          currentUser?.photoURL ||
-          `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userHandle)}`,
-        location: currentHub.name,
+      authenticityTier: 'hub_inspected',
+      hasOriginalBox: Boolean(newItem.hasOriginalBox),
+      authenticityChecklist: {
+        tagsInspected: Boolean(newItem.angles?.tag),
+        boxIncluded: Boolean(newItem.hasOriginalBox),
+        receiptAvailable: false,
+        hardwareChecked: true,
+        wearGrade: newItem.condition || '9.8 / 10',
       },
-      tags: ['Verified', 'New Upload'],
+      owner: {
+        name: realDisplayName,
+        handle: realHandle,
+        isPro: totalSwaps >= 2,
+        rating: userRating,
+        swapCount: totalSwaps,
+        avatarUrl: realAvatar,
+        location: realLocation,
+      },
+      tags: ['#' + cleanBrand.toUpperCase(), '#' + (newItem.category || 'streetwear').toUpperCase(), '#CAIROSWAP'],
     };
     setGarments((prev) => [newFeedGarment, ...prev]);
 
@@ -1318,8 +1357,8 @@ export default function App() {
       body: JSON.stringify(newFeedGarment),
     }).catch(() => {});
 
-    if (currentUser?.uid) {
-      syncWardrobeItemToFirestore(newItem, currentUser.uid);
+    if (activeUser?.uid) {
+      syncWardrobeItemToFirestore(newItem, activeUser.uid);
     }
   };
 
@@ -1587,6 +1626,7 @@ export default function App() {
             window.localStorage.removeItem('swap_launch_auth_completed');
             setHasCompletedLaunchAuth(false);
           }}
+          onUpdateUser={(updated) => setCurrentUser(updated)}
         />
       )}
 
