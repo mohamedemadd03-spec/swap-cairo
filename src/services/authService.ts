@@ -132,15 +132,21 @@ export const authService = {
   },
 
   async register(
-    email: string,
+    username: string,
     password: string,
-    displayName: string,
-    phoneNumber?: string
+    phoneNumber?: string,
+    displayName?: string
   ): Promise<AuthUser> {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, displayName, phoneNumber }),
+      body: JSON.stringify({
+        username,
+        handle: username,
+        password,
+        phoneNumber,
+        displayName: displayName || username,
+      }),
     });
 
     const data = await res.json();
@@ -152,11 +158,11 @@ export const authService = {
     return data.user as AuthUser;
   },
 
-  async login(emailOrPhone: string, password: string): Promise<AuthUser> {
+  async login(identifier: string, password: string): Promise<AuthUser> {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailOrPhone, password }),
+      body: JSON.stringify({ identifier, email: identifier, phoneNumber: identifier, password }),
     });
 
     const data = await res.json();

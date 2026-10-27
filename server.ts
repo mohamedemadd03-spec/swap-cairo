@@ -1287,59 +1287,73 @@ app.post('/api/auth/phone-login', (req, res) => {
   }
 });
 
-// 1. Register with real email & password
+// 1. Register with username, phone, password (Direct, Real & Production Ready)
 app.post('/api/auth/register', (req, res) => {
   try {
     const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'ip_unknown';
-    if (!checkRateLimit(`reg_${clientIp}`, 6, 600_000)) {
+    if (!checkRateLimit(`reg_${clientIp}`, 15, 600_000)) {
       return res.status(429).json({
         success: false,
-        error: 'تم تجاوز حد التسجيل المسموح به من هذا الجهاز مؤقتاً. يرجى الانتظار 10 دقائق.',
+        error: 'تم تجاوز حد التسجيل المسموح به مؤقتاً. يرجى الانتظار دقيقتين.',
       });
     }
 
-    const { email, password, displayName, phoneNumber } = req.body || {};
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return res.status(400).json({ success: false, error: 'بريد إلكتروني غير صالح / Invalid email address' });
+    const { username, handle, password, phoneNumber, displayName, email } = req.body || {};
+    const rawUsername = String(username || handle || displayName || '').trim();
+    const rawPass = String(password || '');
+    const rawPhone = String(phoneNumber || '').trim();
+
+    if (!rawUsername || rawUsername.length < 2) {
+      return res.status(400).json({ success: false, error: 'يرجى كتابة اسم المستخدم أو هاندل الستريتوير' });
     }
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({ success: false, error: 'كلمة المرور يجب أن لا تقل عن 6 أحرف / Password must be at least 6 characters' });
+    if (!rawPass || rawPass.length < 6) {
+      return res.status(400).json({ success: false, error: 'كلمة المرور يجب أن لا تقل عن 6 أحرف' });
     }
-    const cleanName = (displayName && typeof displayName === 'string' ? displayName.trim() : '') || email.split('@')[0];
-    const cleanEmail = email.toLowerCase().trim();
-    const cleanPhone = (phoneNumber && typeof phoneNumber === 'string') ? phoneNumber.trim() : '';
+
+    const cleanHandle = rawUsername.startsWith('@')
+      ? '@' + rawUsername.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 24)
+      : '@' + rawUsername.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 24);
+
+    const normPhone = rawPhone ? normalizePhoneNumber(rawPhone) : '';
 
     const dbState = readServerDb() || {};
     const existingUsers = dbState.users || [];
     const bannedHandles = dbState.bannedHandles || [];
 
-    const cleanHandle = '@' + cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 24);
-    if (bannedHandles.includes(cleanHandle) || bannedHandles.includes(cleanEmail)) {
-      return res.status(403).json({ success: false, error: 'هذا الحساب محظور نهائياً من سواب لمخالفة معايير الأمان' });
+    if (bannedHandles.includes(cleanHandle) || (normPhone && bannedHandles.includes(normPhone))) {
+      return res.status(403).json({ success: false, error: 'هذا الحساب محظور نهائياً لمخالفة معايير الأمان' });
     }
 
-    if (existingUsers.some((u) => u.email === cleanEmail)) {
-      return res.status(409).json({ success: false, error: 'هذا البريد الإلكتروني مسجل بالفعل، يرجى تسجيل الدخول / Email already registered' });
+    // Check handle collision
+    if (existingUsers.some((u) => u.handle.toLowerCase() === cleanHandle.toLowerCase())) {
+      return res.status(409).json({ success: false, error: 'اسم المستخدم مسجل بالفعل، اختر اسماً آخر أو سجل دخولك' });
+    }
+
+    // Check phone collision if phone provided
+    if (normPhone && existingUsers.some((u) => u.phoneNumber && normalizePhoneNumber(u.phoneNumber) === normPhone)) {
+      return res.status(409).json({ success: false, error: 'رقم الهاتف مسجل بالفعل بحساب آخر، يرجى تسجيل الدخول' });
     }
 
     const salt = crypto.randomBytes(16).toString('hex');
-    const passwordHash = hashPassword(password, salt);
+    const passwordHash = hashPassword(rawPass, salt);
     const uid = 'usr_' + Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
+
+    const cleanDisplayName = String(displayName || rawUsername).replace(/^@/, '').trim();
 
     const newUser: ServerUser = {
       uid,
-      email: cleanEmail,
-      displayName: cleanName,
+      displayName: cleanDisplayName,
       handle: cleanHandle,
-      phoneNumber: cleanPhone,
+      phoneNumber: normPhone || undefined,
+      email: email ? String(email).toLowerCase().trim() : undefined,
       passwordHash,
       salt,
       createdAt: new Date().toISOString(),
       swapCount: 0,
-      trustPoints: 450,
+      trustPoints: 50, // Starter phone & profile bonus
       rating: 5.0,
       photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanHandle)}`,
-      preferredHub: 'Maadi Hub',
+      preferredHub: 'Espresso Lab Degla Hub #04',
     };
 
     writeServerDb({
@@ -1357,48 +1371,61 @@ app.post('/api/auth/register', (req, res) => {
   }
 });
 
-// 2. Login with email/phone & password
+// 2. Login with Username (Handle) OR Phone Number & Password
 app.post('/api/auth/login', (req, res) => {
   try {
     const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'ip_unknown';
-    if (!checkRateLimit(`login_${clientIp}`, 10, 60_000)) {
+    if (!checkRateLimit(`login_${clientIp}`, 15, 60_000)) {
       return res.status(429).json({
         success: false,
-        error: 'تم تجاوز الحد الأقصى لمحاولات تسجيل الدخول (10 محاولات في الدقيقة). يرجى الانتظار دقيقة والمحاولة مجدداً.',
+        error: 'تم تجاوز الحد الأقصى لمحاولات تسجيل الدخول. يرجى الانتظار دقيقة والمحاولة مجدداً.',
       });
     }
 
-    const { email, password } = req.body || {};
-    if (!email || !password) {
-      return res.status(400).json({ success: false, error: 'يرجى كتابة البريد وكلمة المرور / Please provide email and password' });
+    const { identifier, email, phoneNumber, username, handle, password } = req.body || {};
+    const rawIdentifier = String(identifier || email || phoneNumber || username || handle || '').trim();
+    const rawPassword = String(password || '');
+
+    if (!rawIdentifier || !rawPassword) {
+      return res.status(400).json({ success: false, error: 'يرجى كتابة اسم المستخدم أو رقم الهاتف وكلمة المرور' });
     }
 
-    const cleanInput = String(email).toLowerCase().trim();
+    const cleanInput = rawIdentifier.toLowerCase();
+    const cleanDigits = rawIdentifier.replace(/\D/g, '');
     const dbState = readServerDb() || {};
     const users = dbState.users || [];
 
-    const user = users.find(
-      (u) =>
-        u.email === cleanInput ||
-        u.handle.toLowerCase() === cleanInput ||
-        (u.phoneNumber && u.phoneNumber.replace(/\D/g, '') === cleanInput.replace(/\D/g, ''))
-    );
+    const user = users.find((u) => {
+      const uHandle = u.handle.toLowerCase();
+      const uPhone = (u.phoneNumber || '').replace(/\D/g, '');
+      const uEmail = (u.email || '').toLowerCase();
+      const uDisplay = u.displayName.toLowerCase();
+
+      return (
+        uHandle === cleanInput ||
+        uHandle === `@${cleanInput}` ||
+        `@${uHandle}` === cleanInput ||
+        uDisplay === cleanInput ||
+        (cleanDigits.length >= 8 && uPhone.endsWith(cleanDigits.slice(-8))) ||
+        (uEmail && uEmail === cleanInput)
+      );
+    });
 
     if (!user) {
-      return res.status(401).json({ success: false, error: 'الحساب غير موجود، يرجى إنشاء حساب جديد / Account not found, please register' });
+      return res.status(401).json({ success: false, error: 'اسم المستخدم أو رقم الهاتف غير مسجل، يرجى إنشاء حساب جديد' });
     }
 
     const bannedHandles = dbState.bannedHandles || [];
-    if (user.isBanned || bannedHandles.includes(user.handle.toLowerCase()) || (user.email && bannedHandles.includes(user.email.toLowerCase()))) {
+    if (user.isBanned || bannedHandles.includes(user.handle.toLowerCase()) || (user.phoneNumber && bannedHandles.includes(user.phoneNumber))) {
       return res.status(403).json({
         success: false,
-        error: `تم حظر هذا الحساب نهائياً: ${user.banReason || 'مخالفة معايير الأمان ورفع محتوى غير مطابق'}`
+        error: `تم حظر هذا الحساب نهائياً: ${user.banReason || 'مخالفة معايير الأمان'}`
       });
     }
 
-    const checkHash = hashPassword(String(password), user.salt);
+    const checkHash = hashPassword(rawPassword, user.salt);
     if (checkHash !== user.passwordHash) {
-      return res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة / Incorrect password' });
+      return res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة، يرجى التأكد والمحاولة مجدداً' });
     }
 
     const token = 'tok_' + user.uid + '_' + crypto.randomBytes(16).toString('hex');
