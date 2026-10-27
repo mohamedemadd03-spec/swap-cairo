@@ -174,7 +174,13 @@ export const authService = {
     return data.user as AuthUser;
   },
 
-  async verifyResetPhone(phoneNumber: string): Promise<{ verified: boolean; handle: string; displayName?: string; phoneNumber: string }> {
+  async verifyResetPhone(phoneNumber: string): Promise<{
+    verified: boolean;
+    resetToken?: string;
+    handle: string;
+    displayName?: string;
+    phoneNumber: string;
+  }> {
     const res = await fetch('/api/auth/verify-reset-phone', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -189,11 +195,16 @@ export const authService = {
     return data;
   },
 
-  async resetPassword(phoneNumber: string, newPassword: string, identifier?: string): Promise<AuthUser> {
+  async resetPassword(
+    phoneNumber: string,
+    newPassword: string,
+    resetToken?: string,
+    identifier?: string
+  ): Promise<AuthUser> {
     const res = await fetch('/api/auth/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phoneNumber, newPassword, identifier }),
+      body: JSON.stringify({ phoneNumber, newPassword, resetToken, identifier }),
     });
 
     const data = await res.json();
@@ -205,6 +216,24 @@ export const authService = {
       this.setStoredUser(data.user, data.token);
     }
     return data.user as AuthUser;
+  },
+
+  async verifySession(): Promise<{ valid: boolean; user?: AuthUser; banned?: boolean; error?: string }> {
+    try {
+      const user = this.getStoredUser();
+      if (!user?.uid) return { valid: false };
+      const token = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.TOKEN) : null;
+
+      const res = await fetch(`/api/auth/verify-session?uid=${encodeURIComponent(user.uid)}&token=${encodeURIComponent(token || '')}`);
+      const data = await res.json();
+      if (res.ok && data?.success && data?.valid && data?.user) {
+        return { valid: true, user: data.user };
+      }
+      return { valid: false, banned: Boolean(data?.banned), error: data?.error };
+    } catch {
+      const local = this.getStoredUser();
+      return { valid: Boolean(local), user: local || undefined };
+    }
   },
 
   logout(): void {

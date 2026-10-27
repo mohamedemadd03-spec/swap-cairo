@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/utils/swapLogic.test.ts src/utils/userJourneySimulation.test.ts src/utils/progression.test.ts src/utils/freshUserLiveJourney.test.ts"
+    "test": "tsx --test src/utils/swapLogic.test.ts src/utils/userJourneySimulation.test.ts src/utils/progression.test.ts src/utils/freshUserLiveJourney.test.ts src/utils/securityAndAuth.test.ts"
   },
   "overrides": {
     "@grpc/grpc-js": "^1.13.6",

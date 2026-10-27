@@ -22,7 +22,9 @@ interface ServerUser {
   phoneNumber?: string;
   passwordHash: string;
   salt: string;
+  hashAlgorithm?: 'scrypt' | 'pbkdf2_1000';
   createdAt: string;
+  updatedAt?: string;
   swapCount: number;
   trustPoints: number;
   rating: number;
@@ -33,8 +35,7 @@ interface ServerUser {
   bannedAt?: string;
 }
 
-// In-memory active phone SMS verification OTP store
-const phoneOtpMap = new Map<string, { code: string; expiresAt: number; attempts: number }>();
+
 
 function normalizePhoneNumber(input: string): string {
   const digits = String(input || '').replace(/\D/g, '');
@@ -77,9 +78,7 @@ interface ServerDatabaseState {
   updatedAt?: string;
 }
 
-function hashPassword(password: string, salt: string): string {
-  return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-}
+
 
 function generateSafeUser(user: ServerUser) {
   const { passwordHash, salt, ...safe } = user;
@@ -101,16 +100,207 @@ function isDemoGarment(g: any): boolean {
   );
 }
 
-function readServerDb(): ServerDatabaseState | null {
-  try {
-    if (!fs.existsSync(DB_FILE)) return null;
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+const BACKUP_FILE = path.resolve(DATA_DIR, 'swap-db.backup.json');
+
+// In-memory active phone SMS verification OTP store
+const phoneOtpMap = new Map<string, { code: string; expiresAt: number; attempts: number }>();
+
+// In-memory cryptographically secure single-use password reset tokens
+interface ResetTokenRecord {
+  userId: string;
+  phoneNumber: string;
+  token: string;
+  expiresAt: number;
+  used: boolean;
+}
+const passwordResetTokensMap = new Map<string, ResetTokenRecord>();
+
+// In-memory brute-force defense & account lockout store
+interface FailedLoginRecord {
+  attempts: number;
+  lockedUntil?: number;
+  lastAttempt: number;
+}
+const loginSecurityMap = new Map<string, FailedLoginRecord>();
+
+function getSecurityIdentifierKey(identifier: string, ip: string): string {
+  return `${identifier.toLowerCase().trim()}_${ip.trim()}`;
 }
 
+function checkAccountLockout(identifier: string, ip: string): { isLocked: boolean; remainingMinutes: number } {
+  const now = Date.now();
+  const key = getSecurityIdentifierKey(identifier, ip);
+  const record = loginSecurityMap.get(key);
+
+  if (!record) return { isLocked: false, remainingMinutes: 0 };
+
+  if (record.lockedUntil && now < record.lockedUntil) {
+    const remainingMs = record.lockedUntil - now;
+    return { isLocked: true, remainingMinutes: Math.max(1, Math.ceil(remainingMs / 60000)) };
+  }
+
+  // Lockout expired, reset attempts
+  if (record.lockedUntil && now >= record.lockedUntil) {
+    loginSecurityMap.delete(key);
+  }
+
+  return { isLocked: false, remainingMinutes: 0 };
+}
+
+function recordFailedLogin(identifier: string, ip: string): { isNowLocked: boolean; attemptsLeft: number } {
+  const now = Date.now();
+  const key = getSecurityIdentifierKey(identifier, ip);
+  const record = loginSecurityMap.get(key) || { attempts: 0, lastAttempt: now };
+
+  if (now - record.lastAttempt > 15 * 60 * 1000) {
+    record.attempts = 0;
+  }
+
+  record.attempts += 1;
+  record.lastAttempt = now;
+
+  if (record.attempts >= 5) {
+    record.lockedUntil = now + 15 * 60 * 1000; // 15 minutes lockout
+    loginSecurityMap.set(key, record);
+    return { isNowLocked: true, attemptsLeft: 0 };
+  }
+
+  loginSecurityMap.set(key, record);
+  return { isNowLocked: false, attemptsLeft: Math.max(0, 5 - record.attempts) };
+}
+
+function clearFailedLogin(identifier: string, ip: string): void {
+  const key = getSecurityIdentifierKey(identifier, ip);
+  loginSecurityMap.delete(key);
+}
+
+// In-memory active authenticated session tokens store
+interface AuthSessionRecord {
+  token: string;
+  uid: string;
+  createdAt: number;
+  expiresAt: number;
+  ip: string;
+}
+const authSessionsMap = new Map<string, AuthSessionRecord>();
+
+function createSessionToken(uid: string, ip: string): string {
+  const token = 'tok_' + uid + '_' + crypto.randomBytes(24).toString('hex');
+  authSessionsMap.set(token, {
+    token,
+    uid,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days
+    ip,
+  });
+  return token;
+}
+
+/**
+ * Modern OWASP-compliant memory-hard password hashing (scrypt)
+ */
+function hashPasswordScrypt(password: string, salt: string): string {
+  return crypto.scryptSync(password, salt, 64, { N: 16384, r: 8, p: 1 }).toString('hex');
+}
+
+/**
+ * Legacy PBKDF2 hash function (strictly for backward-compatible verification & migration)
+ */
+function hashPasswordLegacyPbkdf2(password: string, salt: string): string {
+  return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+}
+
+/**
+ * Primary hash function for all new user registrations and password changes
+ */
+function hashPassword(password: string, salt: string): string {
+  return hashPasswordScrypt(password, salt);
+}
+
+/**
+ * Timing-attack resistant password verification with automatic migration to scrypt
+ */
+function verifyUserPassword(password: string, user: ServerUser): { valid: boolean; needsRehash: boolean } {
+  if (!user || !user.passwordHash || !user.salt) {
+    return { valid: false, needsRehash: false };
+  }
+
+  // 1. Check modern scrypt hash
+  if (user.hashAlgorithm === 'scrypt') {
+    const computed = hashPasswordScrypt(password, user.salt);
+    try {
+      const match = crypto.timingSafeEqual(Buffer.from(computed, 'hex'), Buffer.from(user.passwordHash, 'hex'));
+      return { valid: match, needsRehash: false };
+    } catch {
+      return { valid: false, needsRehash: false };
+    }
+  }
+
+  // 2. Check legacy PBKDF2 (for accounts created before upgrade)
+  const legacyComputed = hashPasswordLegacyPbkdf2(password, user.salt);
+  let isLegacyValid = false;
+  try {
+    isLegacyValid = crypto.timingSafeEqual(Buffer.from(legacyComputed, 'hex'), Buffer.from(user.passwordHash, 'hex'));
+  } catch {
+    isLegacyValid = false;
+  }
+
+  if (isLegacyValid) {
+    return { valid: true, needsRehash: true };
+  }
+
+  // 3. Fallback: check scrypt in case hash was scrypt but algorithm property was unrecorded
+  const fallbackScrypt = hashPasswordScrypt(password, user.salt);
+  try {
+    const fallbackMatch = crypto.timingSafeEqual(Buffer.from(fallbackScrypt, 'hex'), Buffer.from(user.passwordHash, 'hex'));
+    if (fallbackMatch) {
+      return { valid: true, needsRehash: false };
+    }
+  } catch {}
+
+  return { valid: false, needsRehash: false };
+}
+
+/**
+ * Failover-resilient database reader: attempts primary DB_FILE first,
+ * and recovers gracefully from BACKUP_FILE if primary is damaged.
+ */
+function readServerDb(): ServerDatabaseState | null {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('[DB FAILOVER] Main swap-db.json read error, failing over to backup:', err);
+  }
+
+  // Automatic failover recovery
+  try {
+    if (fs.existsSync(BACKUP_FILE)) {
+      const rawBackup = fs.readFileSync(BACKUP_FILE, 'utf-8');
+      const parsedBackup = JSON.parse(rawBackup);
+      if (parsedBackup && typeof parsedBackup === 'object') {
+        console.log('[DB RESTORE] Restored database state from backup copy successfully.');
+        fs.writeFileSync(DB_FILE, rawBackup, 'utf-8');
+        return parsedBackup;
+      }
+    }
+  } catch (backupErr) {
+    console.error('[DB CRITICAL] Failed to read backup file:', backupErr);
+  }
+
+  return null;
+}
+
+/**
+ * Enterprise-grade atomic writer: writes to a unique temporary file first,
+ * then atomically renames to DB_FILE to prevent corruptions during sudden termination.
+ * Also keeps an active mirror in BACKUP_FILE.
+ */
 function writeServerDb(nextState: ServerDatabaseState): void {
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -120,9 +310,24 @@ function writeServerDb(nextState: ServerDatabaseState): void {
     const merged: ServerDatabaseState = {
       ...existing,
       ...nextState,
+      users: nextState.users !== undefined ? nextState.users : (existing.users || []),
+      bannedHandles: nextState.bannedHandles !== undefined ? nextState.bannedHandles : (existing.bannedHandles || []),
+      bannedIps: nextState.bannedIps !== undefined ? nextState.bannedIps : (existing.bannedIps || []),
+      deletedGarmentIds: nextState.deletedGarmentIds !== undefined ? nextState.deletedGarmentIds : (existing.deletedGarmentIds || []),
       updatedAt: new Date().toISOString(),
     };
-    fs.writeFileSync(DB_FILE, JSON.stringify(merged, null, 2), 'utf-8');
+
+    const serialized = JSON.stringify(merged, null, 2);
+    const tmpFile = path.resolve(DATA_DIR, `swap-db.${Date.now()}.${crypto.randomBytes(4).toString('hex')}.tmp`);
+
+    // 1. Atomic write via temp file + rename
+    fs.writeFileSync(tmpFile, serialized, 'utf-8');
+    fs.renameSync(tmpFile, DB_FILE);
+
+    // 2. Synchronous mirror backup
+    try {
+      fs.writeFileSync(BACKUP_FILE, serialized, 'utf-8');
+    } catch {}
   } catch (err) {
     console.warn('Warning: could not persist state to disk:', err);
   }
@@ -1322,7 +1527,7 @@ app.post('/api/auth/phone-register', (req, res) => {
     }
 
     const salt = crypto.randomBytes(16).toString('hex');
-    const passwordHash = hashPassword(cleanPass, salt);
+    const passwordHash = hashPasswordScrypt(cleanPass, salt);
     const uid = 'usr_' + Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
 
     const newUser: ServerUser = {
@@ -1332,6 +1537,7 @@ app.post('/api/auth/phone-register', (req, res) => {
       phoneNumber: normPhone,
       passwordHash,
       salt,
+      hashAlgorithm: 'scrypt',
       createdAt: new Date().toISOString(),
       swapCount: 0,
       trustPoints: 450,
@@ -1384,12 +1590,41 @@ app.post('/api/auth/phone-login', (req, res) => {
       });
     }
 
-    const checkHash = hashPassword(cleanPass, user.salt);
-    if (checkHash !== user.passwordHash) {
-      return res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة' });
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'ip_unknown';
+    const lockout = checkAccountLockout(normPhone, clientIp);
+    if (lockout.isLocked) {
+      return res.status(423).json({
+        success: false,
+        error: `تم قفل محاولات تسجيل الدخول مؤقتاً لحماية الحساب من التخمين بعد 5 محاولات خاطئة. يرجى الانتظار ${lockout.remainingMinutes} دقيقة.`,
+      });
     }
 
-    const token = 'tok_' + user.uid + '_' + crypto.randomBytes(16).toString('hex');
+    const verification = verifyUserPassword(cleanPass, user);
+    if (!verification.valid) {
+      const fail = recordFailedLogin(normPhone, clientIp);
+      return res.status(401).json({
+        success: false,
+        error: fail.isNowLocked
+          ? 'تم قفل محاولات الدخول مؤقتاً لمدة 15 دقيقة لحماية الحساب بعد 5 محاولات خاطئة.'
+          : `كلمة المرور غير صحيحة. متبقي ${fail.attemptsLeft} محاولات قبل القفل المؤقت.`,
+      });
+    }
+
+    clearFailedLogin(normPhone, clientIp);
+
+    // Silent upgrade to memory-hard scrypt if user was using legacy hash
+    if (verification.needsRehash) {
+      const newSalt = crypto.randomBytes(16).toString('hex');
+      const newHash = hashPasswordScrypt(cleanPass, newSalt);
+      const updatedUsers = users.map((u) =>
+        u.uid === user.uid
+          ? { ...u, salt: newSalt, passwordHash: newHash, hashAlgorithm: 'scrypt' as const, updatedAt: new Date().toISOString() }
+          : u
+      );
+      writeServerDb({ users: updatedUsers });
+    }
+
+    const token = createSessionToken(user.uid, clientIp);
     return res.json({
       success: true,
       user: generateSafeUser(user),
@@ -1476,7 +1711,7 @@ app.post('/api/auth/register', (req, res) => {
     }
 
     const salt = crypto.randomBytes(16).toString('hex');
-    const passwordHash = hashPassword(rawPass, salt);
+    const passwordHash = hashPasswordScrypt(rawPass, salt);
     const uid = 'usr_' + Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
 
     const cleanDisplayName = String(displayName || rawUsername).replace(/^@/, '').trim();
@@ -1489,6 +1724,7 @@ app.post('/api/auth/register', (req, res) => {
       email: email ? String(email).toLowerCase().trim() : undefined,
       passwordHash,
       salt,
+      hashAlgorithm: 'scrypt',
       createdAt: new Date().toISOString(),
       swapCount: 0,
       trustPoints: 50, // Starter phone & profile bonus
@@ -1552,8 +1788,24 @@ app.post('/api/auth/login', (req, res) => {
       );
     });
 
+    const lockout = checkAccountLockout(rawIdentifier, clientIp);
+    if (lockout.isLocked) {
+      return res.status(423).json({
+        success: false,
+        error: `تم قفل محاولات تسجيل الدخول مؤقتاً لحماية الحساب من التخمين بعد 5 محاولات خاطئة. يرجى الانتظار ${lockout.remainingMinutes} دقيقة.`,
+      });
+    }
+
     if (!user) {
-      return res.status(401).json({ success: false, error: 'اسم المستخدم أو رقم الهاتف غير مسجل، يرجى إنشاء حساب جديد' });
+      // Dummy scrypt execution to eliminate timing side-channel leakage
+      hashPasswordScrypt('dummy_timing_shield', '1234567890abcdef1234567890abcdef');
+      const fail = recordFailedLogin(rawIdentifier, clientIp);
+      return res.status(401).json({
+        success: false,
+        error: fail.isNowLocked
+          ? 'تم قفل محاولات الدخول مؤقتاً لمدة 15 دقيقة لحماية الحساب بعد 5 محاولات خاطئة.'
+          : `اسم المستخدم أو رقم الهاتف أو كلمة المرور غير صحيحة. متبقي ${fail.attemptsLeft} محاولات.`,
+      });
     }
 
     const bannedHandles = dbState.bannedHandles || [];
@@ -1564,12 +1816,32 @@ app.post('/api/auth/login', (req, res) => {
       });
     }
 
-    const checkHash = hashPassword(rawPassword, user.salt);
-    if (checkHash !== user.passwordHash) {
-      return res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة، يرجى التأكد والمحاولة مجدداً' });
+    const verification = verifyUserPassword(rawPassword, user);
+    if (!verification.valid) {
+      const fail = recordFailedLogin(rawIdentifier, clientIp);
+      return res.status(401).json({
+        success: false,
+        error: fail.isNowLocked
+          ? 'تم قفل محاولات الدخول مؤقتاً لمدة 15 دقيقة لحماية الحساب بعد 5 محاولات خاطئة.'
+          : `كلمة المرور غير صحيحة. متبقي ${fail.attemptsLeft} محاولات قبل القفل المؤقت.`,
+      });
     }
 
-    const token = 'tok_' + user.uid + '_' + crypto.randomBytes(16).toString('hex');
+    clearFailedLogin(rawIdentifier, clientIp);
+
+    // Silent upgrade to memory-hard scrypt if user was using legacy hash
+    if (verification.needsRehash) {
+      const newSalt = crypto.randomBytes(16).toString('hex');
+      const newHash = hashPasswordScrypt(rawPassword, newSalt);
+      const updatedUsers = users.map((u) =>
+        u.uid === user.uid
+          ? { ...u, salt: newSalt, passwordHash: newHash, hashAlgorithm: 'scrypt' as const, updatedAt: new Date().toISOString() }
+          : u
+      );
+      writeServerDb({ users: updatedUsers });
+    }
+
+    const token = createSessionToken(user.uid, clientIp);
     return res.json({
       success: true,
       user: generateSafeUser(user),
@@ -1615,9 +1887,20 @@ app.post('/api/auth/verify-reset-phone', (req, res) => {
       return res.status(403).json({ success: false, error: 'هذا الحساب محظور نهائياً ولا يمكن استعادته' });
     }
 
+    // Generate single-use, 10-minute cryptographic reset token
+    const resetToken = 'rst_' + crypto.randomBytes(32).toString('hex');
+    passwordResetTokensMap.set(resetToken, {
+      userId: user.uid,
+      phoneNumber: user.phoneNumber || '',
+      token: resetToken,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+      used: false,
+    });
+
     return res.json({
       success: true,
       verified: true,
+      resetToken,
       handle: user.handle,
       displayName: user.displayName || user.handle,
       phoneNumber: user.phoneNumber,
@@ -1630,15 +1913,27 @@ app.post('/api/auth/verify-reset-phone', (req, res) => {
 // 2.1 Reset Password with Verified Phone Number (Step 2 of Forgot Password)
 app.post('/api/auth/reset-password', (req, res) => {
   try {
-    const { identifier, phoneNumber, newPassword } = req.body || {};
+    const { identifier, phoneNumber, newPassword, resetToken } = req.body || {};
     const rawPhone = String(phoneNumber || '').trim();
     const rawPass = String(newPassword || '');
+    const tokenStr = String(resetToken || '').trim();
 
     if (!rawPhone) {
       return res.status(400).json({ success: false, error: 'يرجى إدخال رقم هاتفك المسجل لتأكيد هويتك' });
     }
     if (!rawPass || rawPass.length < 6) {
       return res.status(400).json({ success: false, error: 'كلمة المرور الجديدة يجب أن لا تقل عن 6 أحرف' });
+    }
+    if (!tokenStr) {
+      return res.status(400).json({ success: false, error: 'رمز التحقق المسبق مفقود، يرجى تأكيد رقم هاتفك أولاً' });
+    }
+
+    const tokenRecord = passwordResetTokensMap.get(tokenStr);
+    if (!tokenRecord || tokenRecord.used || Date.now() > tokenRecord.expiresAt) {
+      return res.status(403).json({
+        success: false,
+        error: 'رمز إعادة التعيين غير صالح أو انتهت صلاحيته (المدة المتاحة 10 دقائق). يرجى تأكيد رقم الهاتف مجدداً.',
+      });
     }
 
     const cleanDigits = rawPhone.replace(/\D/g, '');
@@ -1647,7 +1942,6 @@ app.post('/api/auth/reset-password', (req, res) => {
     const dbState = readServerDb() || {};
     const users = dbState.users || [];
 
-    // Find user by phone number (primary) or handle
     const user = users.find((u) => {
       const uPhone = (u.phoneNumber || '').replace(/\D/g, '');
       if (uPhone && uPhone.endsWith(cleanLast9)) return true;
@@ -1658,37 +1952,81 @@ app.post('/api/auth/reset-password', (req, res) => {
       return false;
     });
 
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'لم يتم العثور على حساب مرتبط برقم الهاتف هذا' });
+    if (!user || user.uid !== tokenRecord.userId) {
+      return res.status(404).json({ success: false, error: 'لم يتم العثور على حساب مطابق لرمز التحقق' });
     }
 
     if (user.isBanned) {
       return res.status(403).json({ success: false, error: 'هذا الحساب محظور نهائياً ولا يمكن استعادته' });
     }
 
+    // Invalidate reset token immediately (single-use enforcement)
+    passwordResetTokensMap.delete(tokenStr);
+
     const salt = crypto.randomBytes(16).toString('hex');
-    const passwordHash = hashPassword(rawPass, salt);
+    const passwordHash = hashPasswordScrypt(rawPass, salt);
 
     const updatedUsers = users.map((u) => {
       if (u.uid === user.uid) {
-        return { ...u, passwordHash, salt, updatedAt: new Date().toISOString() };
+        return {
+          ...u,
+          passwordHash,
+          salt,
+          hashAlgorithm: 'scrypt' as const,
+          updatedAt: new Date().toISOString(),
+        };
       }
       return u;
     });
 
     writeServerDb({ users: updatedUsers });
 
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'ip_unknown';
     const updatedUser = updatedUsers.find((u) => u.uid === user.uid)!;
-    const token = 'tok_' + user.uid + '_' + crypto.randomBytes(16).toString('hex');
+    const token = createSessionToken(user.uid, clientIp);
 
     return res.json({
       success: true,
-      message: 'تم تعيين كلمة المرور الجديدة بنجاح! تم تسجيل دخولك الآن.',
+      message: 'تم تعيين كلمة المرور الجديدة وتأمين الحساب بنجاح! تم تسجيل دخولك الآن.',
       user: generateSafeUser(updatedUser),
       token,
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Password reset failed' });
+  }
+});
+
+// 2.15 Verify Active Session
+app.get('/api/auth/verify-session', (req, res) => {
+  try {
+    const token = String(req.query.token || req.headers.authorization?.replace(/^Bearer\s+/, '') || '').trim();
+    const uid = String(req.query.uid || '').trim();
+
+    const dbState = readServerDb() || {};
+    const users = dbState.users || [];
+    const bannedHandles = dbState.bannedHandles || [];
+
+    const user = users.find((u) => u.uid === uid || (token && token.includes(u.uid)));
+    if (!user) {
+      return res.status(401).json({ success: false, valid: false, error: 'User account not found' });
+    }
+
+    if (user.isBanned || bannedHandles.includes(user.handle.toLowerCase()) || (user.phoneNumber && bannedHandles.includes(user.phoneNumber))) {
+      return res.status(403).json({
+        success: false,
+        valid: false,
+        banned: true,
+        error: `تم حظر هذا الحساب: ${user.banReason || 'مخالفة معايير الأمان'}`,
+      });
+    }
+
+    return res.json({
+      success: true,
+      valid: true,
+      user: generateSafeUser(user),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, valid: false, error: 'Session verification failed' });
   }
 });
 

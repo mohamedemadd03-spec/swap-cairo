@@ -139,6 +139,22 @@ export default function App() {
     };
   }, []);
 
+  // Active session and account security check on launch
+  useEffect(() => {
+    if (currentUser?.uid) {
+      authService.verifySession().then((res) => {
+        if (!res.valid) {
+          authService.logout();
+          setCurrentUser(null);
+          setHasCompletedLaunchAuth(false);
+        } else if (res.user) {
+          setCurrentUser(res.user);
+          authService.setStoredUser(res.user);
+        }
+      }).catch(() => {});
+    }
+  }, []);
+
   // Data states (hydrated from localStorage + Server DB)
   const [garments, setGarments] = useState<Garment[]>(initialHydrated.garments);
   const [currentIndex, setCurrentIndex] = useState(0);

@@ -39,6 +39,7 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
   const [forgotStep, setForgotStep] = useState<1 | 2>(1);
   const [forgotPhone, setForgotPhone] = useState('');
   const [verifiedHandle, setVerifiedHandle] = useState<string | null>(null);
+  const [resetToken, setResetToken] = useState<string>('');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
 
@@ -153,6 +154,9 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
     try {
       const result = await authService.verifyResetPhone(cleanPhone);
       setVerifiedHandle(result.handle);
+      if (result.resetToken) {
+        setResetToken(result.resetToken);
+      }
       setForgotStep(2);
       triggerHaptic('light');
       soundFX.playMatch();
@@ -181,7 +185,7 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
     soundFX.playClick();
 
     try {
-      const user = await authService.resetPassword(cleanPhone, forgotNewPassword);
+      const user = await authService.resetPassword(cleanPhone, forgotNewPassword, resetToken);
       triggerHaptic('trade');
       soundFX.playCash();
       onAuthSuccess(user);
