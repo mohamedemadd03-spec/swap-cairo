@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { soundFX, triggerHaptic } from '../../hooks/useSoundFX';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface BrutalistQRCodeProps {
   value: string;
@@ -15,10 +16,17 @@ export const BrutalistQRCode: React.FC<BrutalistQRCodeProps> = ({
   value,
   size = 200,
   label = 'HANDSHAKE',
-  sublabel = 'وجّه كاميرا الطرف الآخر لمسح الكود وتوثيق التبادل',
+  sublabel,
   onSimulateScan,
   showCopy = true,
 }) => {
+  const { language } = useLanguage();
+  const isAr = language === 'ar';
+  const defaultSublabel = isAr
+    ? 'وجّه كاميرا الطرف الآخر لمسح الكود وتوثيق التبادل'
+    : 'Point partner camera here to verify exchange';
+  const activeSublabel = sublabel || defaultSublabel;
+
   const [qrSrc, setQrSrc] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
 
@@ -64,7 +72,7 @@ export const BrutalistQRCode: React.FC<BrutalistQRCodeProps> = ({
       {/* Brutalist QR Container */}
       <div
         onClick={onSimulateScan}
-        title={onSimulateScan ? 'انقر لمحاكاة مسح الكود فورياً' : 'QR Scan ready'}
+        title={onSimulateScan ? (isAr ? 'انقر لمحاكاة مسح الكود فورياً' : 'Click to simulate instant scan') : 'QR Scan ready'}
         className="relative p-3 rounded-2xl border-2 border-[#caf300]/80 bg-[#151418] shadow-[0_0_25px_rgba(202,243,0,0.18)] transition-all cursor-pointer group active:scale-98"
       >
         {/* Reticle Corners */}
@@ -118,14 +126,14 @@ export const BrutalistQRCode: React.FC<BrutalistQRCodeProps> = ({
               <span className="material-symbols-outlined text-[13px]">
                 {copied ? 'check' : 'content_copy'}
               </span>
-              <span>{copied ? 'تم النسخ' : 'نسخ'}</span>
+              <span>{copied ? (isAr ? 'تم النسخ' : 'COPIED') : (isAr ? 'نسخ' : 'COPY')}</span>
             </button>
           )}
         </div>
 
         {/* Practical Instruction */}
         <p className="text-[10px] text-center text-[#c5c9ac] leading-tight px-2">
-          {sublabel}
+          {activeSublabel}
         </p>
 
         {onSimulateScan && (
@@ -134,7 +142,7 @@ export const BrutalistQRCode: React.FC<BrutalistQRCodeProps> = ({
             onClick={onSimulateScan}
             className="text-[9.5px] text-[#caf300]/80 hover:text-[#caf300] underline mt-0.5 cursor-pointer uppercase transition-colors"
           >
-            [اضغط هنا لمحاكاة المسح والتسليم فوراً 🤝]
+            {isAr ? '[اضغط هنا لمحاكاة المسح والتسليم فوراً 🤝]' : '[Tap here to simulate instant QR handshake 🤝]'}
           </button>
         )}
       </div>

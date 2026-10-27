@@ -17,7 +17,7 @@ export const translations = {
     navDiscover: 'Discover',
     navCloset: 'My Closet',
     navDeals: 'Deals',
-    navPassport: 'Profile',
+    navPassport: 'PASS',
 
     // Discover Feed
     cardView: 'Card',

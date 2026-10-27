@@ -16,7 +16,8 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   item,
   onInitiateSwap,
 }) => {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const isAr = language === 'ar';
   const [activeThumb, setActiveThumb] = useState(0);
 
   if (!isOpen || !item) return null;
@@ -126,7 +127,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
         <div className="px-3 py-2 rounded-xl bg-[#1c1b20] border border-white/5 flex items-center justify-between text-[11px] font-mono text-[#c5c9ac]">
           <div className="flex items-center gap-1.5 truncate">
             <span className="material-symbols-outlined text-[#caf300] text-[15px]">location_on</span>
-            <span className="truncate">{isGarment ? item.city || item.owner?.location || 'القاهرة' : 'دولابك الشخصي'}</span>
+            <span className="truncate">{isGarment ? item.city || item.owner?.location || (isAr ? 'القاهرة' : 'Cairo') : (isAr ? 'دولابك الشخصي' : 'Personal Closet')}</span>
           </div>
           {isGarment && item.owner?.handle && (
             <span className="text-[#8f9378] shrink-0 font-bold">@{item.owner.handle.replace(/^@/, '')}</span>

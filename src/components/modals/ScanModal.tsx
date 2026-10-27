@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { soundFX } from '../../hooks/useSoundFX';
 import { BrutalistQRCode } from '../common/BrutalistQRCode';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface ScanModalProps {
   isOpen: boolean;
@@ -17,6 +18,8 @@ export const ScanModal: React.FC<ScanModalProps> = ({
   activePassCode = 'SWP-7740',
   defaultSpotName = 'Espresso Lab Degla Hub #04',
 }) => {
+  const { language } = useLanguage();
+  const isAr = language === 'ar';
   const [manualCode, setManualCode] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
   const [mode, setMode] = useState<'my_qr' | 'scan'>('my_qr');
@@ -152,7 +155,7 @@ export const ScanModal: React.FC<ScanModalProps> = ({
                 }`}
               >
                 <span className="material-symbols-outlined text-[14px]">call_made</span>
-                <span>The One Who Gives</span>
+                <span>{isAr ? 'الطرف المُسلِّم' : 'The One Who Gives'}</span>
               </button>
               <button
                 type="button"
@@ -164,7 +167,7 @@ export const ScanModal: React.FC<ScanModalProps> = ({
                 }`}
               >
                 <span className="material-symbols-outlined text-[14px]">call_received</span>
-                <span>The One Who Receives</span>
+                <span>{isAr ? 'الطرف المُستلِم' : 'The One Who Receives'}</span>
               </button>
             </div>
 
@@ -173,14 +176,14 @@ export const ScanModal: React.FC<ScanModalProps> = ({
                 <BrutalistQRCode
                   value={activePassCode}
                   onSimulateScan={() => handleSimulateScan(activePassCode)}
-                  label="ROLE: THE ONE WHO GIVES"
-                  sublabel="وجّه كاميرا المستلم لمسح الكود وتوثيق السواب فوراً"
+                  label={isAr ? 'الدور: الطرف المُسلِّم' : 'ROLE: THE ONE WHO GIVES'}
+                  sublabel={isAr ? 'وجّه كاميرا المستلم لمسح الكود وتوثيق السواب فوراً' : 'Point receiver camera to scan QR and verify handshake'}
                 />
               </div>
             ) : (
               <>
                 <span className="text-[10px] font-bold uppercase text-[#D4FF00] tracking-wider text-center">
-                  ROLE: THE ONE WHO RECEIVES (INSPECT PIECE &amp; SCAN GIVER QR)
+                  {isAr ? 'الدور: الطرف المُستلِم (افحص القطعة وامسح كود الطرف الآخر)' : 'ROLE: THE ONE WHO RECEIVES (INSPECT PIECE & SCAN GIVER QR)'}
                 </span>
                 <div className="relative w-full aspect-square max-w-[260px] mx-auto bg-black border-2 border-neutral-800 overflow-hidden flex items-center justify-center">
                   {/* Live camera stream */}
@@ -209,7 +212,7 @@ export const ScanModal: React.FC<ScanModalProps> = ({
                     <div className="text-center p-4 z-10 flex flex-col items-center gap-1.5 text-neutral-500">
                       <span className="material-symbols-outlined text-4xl text-[#D4FF00]">center_focus_weak</span>
                       <span className="text-[10px] uppercase font-bold text-neutral-400">
-                        ALIGN PARTNER QR IN FRAME
+                        {isAr ? 'ضع كود الـ QR داخل الإطار' : 'ALIGN PARTNER QR IN FRAME'}
                       </span>
                     </div>
                   )}
@@ -219,7 +222,7 @@ export const ScanModal: React.FC<ScanModalProps> = ({
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="ENTER PARTNER PASS CODE..."
+                    placeholder={isAr ? 'أدخل كود الهاند شيك...' : 'ENTER PARTNER PASS CODE...'}
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value.toUpperCase())}
                     className="flex-1 bg-black border border-neutral-700 px-3 py-2 text-xs text-white uppercase placeholder-neutral-600 focus:outline-none focus:border-[#D4FF00]"
@@ -228,7 +231,7 @@ export const ScanModal: React.FC<ScanModalProps> = ({
                     onClick={() => handleSimulateScan(manualCode || activePassCode)}
                     className="px-3 py-2 bg-[#D4FF00] text-[#08080A] text-xs font-bold uppercase cursor-pointer"
                   >
-                    VERIFY
+                    {isAr ? 'تأكيد' : 'VERIFY'}
                   </button>
                 </div>
               </>

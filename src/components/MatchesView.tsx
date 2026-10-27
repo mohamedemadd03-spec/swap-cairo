@@ -1459,8 +1459,8 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                 <BrutalistQRCode
                   value={barcodeTargetOffer.securityPassCode || 'SWP-7740'}
                   onSimulateScan={() => completeQrHandshake(barcodeTargetOffer)}
-                  label={t('giverRole') || 'THE ONE WHO GIVES'}
-                  sublabel={t('giverSub') || 'وجّه كاميرا المستلم لمسح الكود وتوثيق السواب فوراً'}
+                  label={t('giverRole') || (language === 'ar' ? 'الدور: الطرف المُسلِّم' : 'ROLE: THE ONE WHO GIVES')}
+                  sublabel={t('giverSub') || (language === 'ar' ? 'وجّه كاميرا المستلم لمسح الكود وتوثيق السواب فوراً' : 'Point receiver camera to scan QR code')}
                 />
               </div>
             )}

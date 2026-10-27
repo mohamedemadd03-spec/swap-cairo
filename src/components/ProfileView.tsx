@@ -115,7 +115,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {/* Profile Header */}
         <section className="flex items-center justify-between pt-2">
           <h1 className="font-display font-bold text-xl uppercase tracking-tight text-white">
-            {isAr ? 'البروفايل الشخصي' : 'My Profile'}
+            {isAr ? 'البروفايل' : 'SWAP PASS'}
           </h1>
           <span className="px-2.5 py-0.5 bg-[#caf300]/15 text-[#caf300] font-mono font-bold text-[10.5px] uppercase rounded-full border border-[#caf300]/30">
             {t('level')} {rankInfo.level} • {rankInfo.currentPoints} {t('pts')}
@@ -157,7 +157,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   {currentUser?.displayName || currentUser?.handle || '@cairo_swapper'}
                 </span>
                 <span className="px-1.5 py-0.2 bg-[#caf300] text-[#171e00] font-mono text-[9.5px] font-bold rounded">
-                  {currentUser?.phoneNumber ? (isAr ? 'رقم موثق 🇪🇬' : 'Verified Phone 🇪🇬') : (isAr ? 'موثق' : 'Verified')}
+                  {currentUser?.phoneNumber ? (isAr ? 'رقم موثق' : 'Verified Phone') : (isAr ? 'موثق' : 'Verified')}
                 </span>
               </div>
               <span className="font-mono text-xs text-[#c5c9ac] truncate mt-0.5">
@@ -165,7 +165,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </span>
               <span className="font-mono text-[11px] text-[#caf300] mt-0.5 flex items-center gap-1">
                 <span className="material-symbols-outlined text-[13px]">location_on</span>
-                <span>{isAr ? 'نقطتك:' : 'Your Hub:'} {currentHub.name}</span>
+                <span>{isAr ? 'نقطتك:' : 'Your Hub:'} {isAr ? currentHub.name : (currentHub.shortCode || currentHub.name)}</span>
               </span>
             </div>
           </div>
@@ -503,7 +503,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div className="flex items-center justify-between font-mono text-xs">
             <span className="text-white font-bold uppercase flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[15px] text-[#caf300]">settings</span>
-              <span>{language === 'ar' ? 'الإعدادات (SETTINGS)' : 'SETTINGS & PREFERENCES'}</span>
+              <span>{isAr ? 'الإعدادات' : 'SETTINGS & PREFERENCES'}</span>
             </span>
           </div>
 
@@ -514,10 +514,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <span className="material-symbols-outlined text-[#caf300] text-[18px]">translate</span>
                 <div>
                   <span className="text-xs font-bold text-white block">
-                    {language === 'ar' ? 'لغة التطبيق' : 'App Language'}
+                    {isAr ? 'لغة التطبيق' : 'App Language'}
                   </span>
                   <span className="text-[9.5px] text-[#8f9378] block">
-                    {language === 'ar'
+                    {isAr
                       ? 'العربية (لهجة الشارع والقاهرة)'
                       : 'English (International)'}
                   </span>
@@ -568,10 +568,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <span className="material-symbols-outlined text-[#caf300] text-[18px]">vibration</span>
               <div>
                 <span className="text-xs font-bold text-white block">
-                  {language === 'ar' ? 'الاهتزاز والتفاعل (Haptics)' : 'Haptic Feedback'}
+                  {isAr ? 'الاهتزاز والتفاعل' : 'Haptic Feedback'}
                 </span>
                 <span className="text-[9.5px] text-[#8f9378] block">
-                  {language === 'ar' ? 'اهتزاز لمسي سريع لـ iPhone & Android' : 'Optimized for iOS & Android'}
+                  {isAr ? 'اهتزاز لمسي متوافق مع كافة الأجهزة' : 'Optimized for iOS & Android'}
                 </span>
               </div>
             </div>
@@ -604,9 +604,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {/* Account Session Controls */}
         <section className="p-3.5 rounded-xl bg-[#201f21] border border-[#26262e] flex flex-col gap-2.5 shadow-sm font-mono">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-white font-bold uppercase">إدارة الحساب والجلسة</span>
+            <span className="text-white font-bold uppercase">{isAr ? 'إدارة الحساب والجلسة' : 'Account & Session'}</span>
             <span className="text-[#caf300] text-[10px]">
-              {currentUser?.phoneNumber ? `موثق: ${currentUser.phoneNumber}` : 'حساب نشط'}
+              {currentUser?.phoneNumber
+                ? (isAr ? `موثق: ${currentUser.phoneNumber}` : `Verified: ${currentUser.phoneNumber}`)
+                : (isAr ? 'حساب نشط' : 'Active Account')}
             </span>
           </div>
 
@@ -621,7 +623,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               className="w-full py-2.5 px-3 rounded-xl bg-[#131315] hover:bg-red-500/20 text-[#8f9378] hover:text-red-300 border border-white/10 text-xs font-bold uppercase cursor-pointer transition-colors flex items-center justify-center gap-2 active:scale-98"
             >
               <span className="material-symbols-outlined text-[16px]">logout</span>
-              <span>تسجيل الخروج من الحساب</span>
+              <span>{isAr ? 'تسجيل الخروج من الحساب' : 'Sign Out of Account'}</span>
             </button>
           )}
 
@@ -640,7 +642,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               >
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
-                  <span>{language === 'ar' ? 'لوحة تحكم الإدارة (ADMIN DESK)' : 'ADMIN COMMAND DESK'}</span>
+                  <span>{isAr ? 'لوحة تحكم الإدارة' : 'ADMIN COMMAND DESK'}</span>
                 </div>
                 <span className="text-[10px] text-[#8f9378]">ADMIN ONLY ↗</span>
               </a>
