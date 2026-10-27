@@ -16,9 +16,8 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   item,
   onInitiateSwap,
 }) => {
-  const { t, isRtl } = useLanguage();
+  const { t } = useLanguage();
   const [activeThumb, setActiveThumb] = useState(0);
-  const [copiedShare, setCopiedShare] = useState(false);
 
   if (!isOpen || !item) return null;
 
@@ -27,223 +26,123 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   const itemValue = 'estValue' in item ? item.estValue : item.value || 450;
   const itemCategory = item.category || (item.categoryTag ? item.categoryTag.split('•')[0].trim() : 'Apparel');
 
-  // Build the photo gallery strictly from the actual photos provided (no ghost slots)
-  const photosList: { label: string; url: string; spec: string; note: string }[] = [];
+  // Collect actual photos without redundant fluff
+  const photos: string[] = [];
+  const primary = item.imageUrl || item.angles?.front;
+  if (primary) photos.push(primary);
+  if (item.angles?.back && item.angles.back !== primary) photos.push(item.angles.back);
+  else if (item.photo2 && item.photo2 !== primary) photos.push(item.photo2);
+  if (item.angles?.tag && !photos.includes(item.angles.tag)) photos.push(item.angles.tag);
+  else if (item.photo3 && !photos.includes(item.photo3)) photos.push(item.photo3);
+  if (item.photo4 && !photos.includes(item.photo4)) photos.push(item.photo4);
 
-  const primaryImg = item.imageUrl || item.angles?.front;
-  if (primaryImg) {
-    photosList.push({
-      label: 'FRONT',
-      url: primaryImg,
-      spec: 'FULL SILHOUETTE // OPTICAL 4K',
-      note: 'COLOR & FABRIC TENSION INSPECTED',
-    });
+  if (photos.length === 0) {
+    photos.push(primary || 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop');
   }
 
-  // Second photo (Back / Collar / Tag / Photo 2)
-  const secondImg = item.angles?.back || item.photo2;
-  if (secondImg && secondImg !== primaryImg) {
-    photosList.push({
-      label: 'DETAIL / TAG',
-      url: secondImg,
-      spec: 'BACK PROFILE & ARCHIVE TAG',
-      note: 'COLLAR & SEAM INTEGRITY VERIFIED',
-    });
-  }
-
-  // Third photo (Optional Sleeve / Hardware / Photo 3)
-  const thirdImg = item.angles?.tag || item.photo3;
-  if (thirdImg && thirdImg !== primaryImg && thirdImg !== secondImg) {
-    photosList.push({
-      label: 'SLEEVE / HEM',
-      url: thirdImg,
-      spec: 'SLEEVE & STITCHING DETAIL',
-      note: 'DOUBLE-STITCHED HEM INTEGRITY',
-    });
-  }
-
-  // Fourth photo (Optional extra angle / Photo 4)
-  const fourthImg = item.photo4;
-  if (fourthImg && fourthImg !== primaryImg && fourthImg !== secondImg && fourthImg !== thirdImg) {
-    photosList.push({
-      label: 'EXTRA ANGLE',
-      url: fourthImg,
-      spec: 'MACRO WEAVE INSPECTION',
-      note: 'VERIFIED ARCHIVE DETAIL',
-    });
-  }
-
-  // If only 1 image exists, ensure at least 1 image is in the gallery
-  const gallery = photosList.length > 0 ? photosList : [
-    {
-      label: 'PIECE',
-      url: primaryImg || 'https://lh3.googleusercontent.com/aida-public/AB6AXuAQIPFLaXbG7hGXYmbB4fPjEyd7MtwoE2DMVtVWbG8gAke6M15nReQTWZXy8YPih8SsJVGIyk1da8n66OyBTkWKx3HDcf2_xvrU44NBfufN1dYuCFreBYK55FX-TfAYCmXm7YXXpPv0IZObr6EQF-leIWqTT8mouLIsZCdu6dpGYC937N-6vn7Nib6AwWPF5peRoXNaIfILl6P3CqvijG7oU5O65-rJglGUVyzJT-551sxRZHFEAp7c',
-      spec: 'FULL SILHOUETTE',
-      note: 'AUTHENTIC CIRCULAR GARMENT',
-    },
-  ];
-
-  // Safeguard active thumb index within actual photo count
-  const currentPhotoIndex = activeThumb < gallery.length ? activeThumb : 0;
-  const currentPhoto = gallery[currentPhotoIndex];
+  const currentIdx = activeThumb < photos.length ? activeThumb : 0;
+  const currentImg = photos[currentIdx];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#131315]/95 backdrop-blur-md p-0 sm:p-4 animate-in fade-in">
-      <div className="w-full max-w-md bg-[#201f21] border-t sm:border border-[#26262e] rounded-t-3xl sm:rounded-2xl p-4 sm:p-5 flex flex-col gap-3.5 font-sans shadow-2xl max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#0c0b0e]/90 backdrop-blur-md p-0 sm:p-4 animate-in fade-in">
+      <div className="w-full max-w-sm bg-[#151418] border-t sm:border border-[#26262e] rounded-t-3xl sm:rounded-2xl p-4 flex flex-col gap-3 font-sans shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.08]">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic('light');
-                onClose();
-              }}
-              className="w-8 h-8 rounded-lg bg-[#2a2a2c] flex items-center justify-center text-[#c6c6c7] hover:text-white transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-            </button>
-            <div className="min-w-0">
-              <span className="font-mono text-[9px] uppercase tracking-wider text-[#caf300] block">
-                {itemBrand} // {t('archiveSpec')}
-              </span>
-              <h2 className="font-display font-bold text-sm sm:text-base text-white truncate max-w-[240px]">
-                {item.title}
-              </h2>
-            </div>
+        <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+          <div className="min-w-0 pr-2">
+            <span className="font-mono text-[10px] uppercase font-bold text-[#caf300] block tracking-wider">
+              {itemBrand} • {itemCategory}
+            </span>
+            <h2 className="font-display font-bold text-base text-white truncate">
+              {item.title}
+            </h2>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={async () => {
-                soundFX.playClick();
-                triggerHaptic('light');
-                const shareText = t('sharePieceText', { title: item.title, size: item.size || 'L', value: String(itemValue) });
-                if (navigator.share) {
-                  await navigator
-                    .share({ title: item.title, text: shareText, url: window.location.href })
-                    .catch(() => {});
-                } else if (navigator.clipboard) {
-                  await navigator.clipboard.writeText(`${shareText} ${window.location.href}`).catch(() => {});
-                  setCopiedShare(true);
-                  setTimeout(() => setCopiedShare(false), 1800);
-                }
-              }}
-              title="Share piece via WhatsApp / Native Share"
-              className="w-8 h-8 rounded-lg bg-[#131315] hover:bg-[#2a2a2c] border border-white/10 flex items-center justify-center text-[#caf300] cursor-pointer transition-colors"
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                {copiedShare ? 'check' : 'ios_share'}
-              </span>
-            </button>
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#131315] border border-[#caf300]/40">
-              <span className="material-symbols-outlined text-[13px] text-[#caf300]">verified</span>
-              <span className="font-mono text-[10px] text-[#caf300] uppercase font-bold">{t('vaultCertified')}</span>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('light');
+              onClose();
+            }}
+            className="w-8 h-8 rounded-full bg-[#201f23] hover:bg-[#2b2a30] text-[#c6c6c7] hover:text-white flex items-center justify-center shrink-0 cursor-pointer transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">close</span>
+          </button>
         </div>
 
-        {/* Big Full Inspection Viewport */}
-        <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#0e0e10] border border-[#26262e] shadow-inner group">
+        {/* Clean Photo Viewport */}
+        <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#0a0a0c] border border-white/10">
           <img
-            src={currentPhoto.url}
-            alt={currentPhoto.label}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            src={currentImg}
+            alt={item.title}
+            className="w-full h-full object-cover"
           />
-          <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-[#131315]/90 border border-white/10 font-mono text-[9.5px] text-[#caf300] backdrop-blur-md">
-            {currentPhoto.spec}
+          {photos.length > 1 && (
+            <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-sm font-mono text-[10px] text-white">
+              {currentIdx + 1} / {photos.length}
+            </div>
+          )}
+        </div>
+
+        {/* Multi-angle Strip (Only if 2+ photos) */}
+        {photos.length > 1 && (
+          <div className="flex gap-2 justify-center">
+            {photos.map((p, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => {
+                  soundFX.playClick();
+                  triggerHaptic('light');
+                  setActiveThumb(i);
+                }}
+                className={`w-12 h-12 rounded-xl overflow-hidden border p-0.5 cursor-pointer transition-all ${
+                  currentIdx === i
+                    ? 'border-[#caf300] ring-1 ring-[#caf300]'
+                    : 'border-white/10 opacity-60 hover:opacity-100'
+                }`}
+              >
+                <img src={p} alt={`Angle ${i + 1}`} className="w-full h-full object-cover rounded-lg" />
+              </button>
+            ))}
           </div>
-          <div className="absolute bottom-2.5 inset-x-2.5 px-3 py-1.5 rounded-xl bg-[#201f21]/95 backdrop-blur-md border border-white/10 font-mono text-[10.5px] text-white flex items-center justify-between">
-            <span className="truncate">{currentPhoto.note}</span>
-            <span className="text-[#caf300] text-[10px] uppercase font-bold shrink-0 ml-2">
-              {t('viewImage')} {currentPhotoIndex + 1}/{gallery.length}
-            </span>
+        )}
+
+        {/* Essential Specs Grid */}
+        <div className="grid grid-cols-3 gap-2 font-mono text-center">
+          <div className="bg-[#1c1b20] p-2 rounded-xl border border-white/5">
+            <span className="text-[#8f9378] text-[9.5px] uppercase block">{t('size')}</span>
+            <span className="text-white font-bold text-xs">{item.size || 'L'}</span>
+          </div>
+          <div className="bg-[#1c1b20] p-2 rounded-xl border border-white/5">
+            <span className="text-[#8f9378] text-[9.5px] uppercase block">{t('condition')}</span>
+            <span className="text-[#caf300] font-bold text-xs">{item.condition || '9.5/10'}</span>
+          </div>
+          <div className="bg-[#1c1b20] p-2 rounded-xl border border-white/5">
+            <span className="text-[#8f9378] text-[9.5px] uppercase block">{t('totalClosetValue')}</span>
+            <span className="text-white font-bold text-xs">{itemValue} EGP</span>
           </div>
         </div>
 
-        {/* Thumbnail Selector Strip - Dynamically sized to EXACT photo count (no empty missing slots) */}
-        <div
-          className={`grid gap-2 ${
-            gallery.length === 1
-              ? 'grid-cols-1'
-              : gallery.length === 2
-              ? 'grid-cols-2'
-              : gallery.length === 3
-              ? 'grid-cols-3'
-              : 'grid-cols-4'
-          }`}
-        >
-          {gallery.map((v, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => {
-                soundFX.playClick();
-                triggerHaptic('light');
-                setActiveThumb(i);
-              }}
-              className={`aspect-video sm:aspect-square rounded-xl overflow-hidden border p-0.5 cursor-pointer relative transition-all ${
-                currentPhotoIndex === i
-                  ? 'border-[#caf300] shadow-[0_0_10px_rgba(202,243,0,0.3)] ring-1 ring-[#caf300]'
-                  : 'border-[#26262e] opacity-70 hover:opacity-100'
-              }`}
-            >
-              <img src={v.url} alt={v.label} className="w-full h-full object-cover rounded-lg" />
-              <span className="absolute bottom-0.5 inset-x-0.5 bg-[#131315]/90 text-[8.5px] font-mono text-white text-center uppercase font-bold truncate px-1">
-                {v.label}
-              </span>
-            </button>
-          ))}
+        {/* Location & Owner Pill */}
+        <div className="px-3 py-2 rounded-xl bg-[#1c1b20] border border-white/5 flex items-center justify-between text-[11px] font-mono text-[#c5c9ac]">
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="material-symbols-outlined text-[#caf300] text-[15px]">location_on</span>
+            <span className="truncate">{isGarment ? item.city || item.owner?.location || 'Degla Hub' : 'Your Closet'}</span>
+          </div>
+          {isGarment && item.owner?.handle && (
+            <span className="text-[#8f9378] shrink-0 font-bold">@{item.owner.handle}</span>
+          )}
         </div>
 
-        {/* Complete Garment Details & Description */}
-        <div className="p-3.5 rounded-xl bg-[#131315] border border-white/5 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[10px] text-[#caf300] uppercase font-semibold">
-              {t('fullGarmentDetails')}
-            </span>
-            <span className="font-mono text-[10px] text-[#c5c9ac]">
-              {t('size')} <strong className="text-white">{item.size || 'L'}</strong>
-            </span>
-          </div>
-
-          <p className="font-sans text-xs text-[#e5e1e4] leading-relaxed">
-            {item.description ||
-              `Heavyweight authentic circular fashion piece with premium hand-feel. Ribbed collar and double-stitched hem with zero pinholes, stains, or cracking. Inspected with verified photos.`}
+        {/* Concise Description (only if exists and meaningful) */}
+        {item.description && item.description.trim().length > 0 && (
+          <p className="font-sans text-xs text-[#d0ced4] leading-relaxed px-1">
+            {item.description}
           </p>
-
-          {/* Key Specifications Grid */}
-          <div className="grid grid-cols-3 gap-1.5 pt-1.5 border-t border-white/5 font-mono text-[10px]">
-            <div className="bg-[#1c1b1d] p-2 rounded-lg">
-              <span className="text-[#8f9378] block">{t('navCloset').toUpperCase()}</span>
-              <span className="text-white font-bold uppercase truncate block">{itemCategory}</span>
-            </div>
-            <div className="bg-[#1c1b1d] p-2 rounded-lg">
-              <span className="text-[#8f9378] block">{t('condition').toUpperCase()}</span>
-              <span className="text-[#caf300] font-bold block">{item.condition || '9.8 / 10 MINT'}</span>
-            </div>
-            <div className="bg-[#1c1b1d] p-2 rounded-lg">
-              <span className="text-[#8f9378] block">{t('totalClosetValue').toUpperCase()}</span>
-              <span className="text-white font-bold block">{itemValue} EGP</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Location & Authenticity Assurance */}
-        <div className="p-2.5 rounded-xl bg-[#18181a] border border-white/5 flex items-center justify-between text-[11px] font-mono text-[#c5c9ac]">
-          <div className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[#caf300] text-[16px]">location_on</span>
-            <span>{isGarment ? item.city || item.owner?.location || 'Maadi Hub' : 'Your Cairo Vault'}</span>
-          </div>
-          <div className="flex items-center gap-1 text-[#caf300]">
-            <span className="material-symbols-outlined text-[15px]">shield_check</span>
-            <span>{t('verifiedLockerHandover')}</span>
-          </div>
-        </div>
+        )}
 
         {/* Action Button */}
-        <div className="pt-1 flex gap-2">
-          {isGarment && onInitiateSwap && (
+        <div className="pt-1">
+          {isGarment && onInitiateSwap ? (
             <button
               type="button"
               onClick={() => {
@@ -251,22 +150,23 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 onClose();
                 onInitiateSwap(item as Garment);
               }}
-              className="flex-1 py-3 rounded-xl bg-[#caf300] text-[#171e00] font-mono font-bold text-xs uppercase hover:brightness-110 active:scale-98 cursor-pointer shadow-md shadow-[#caf300]/20 flex items-center justify-center gap-1.5"
+              className="w-full py-3.5 rounded-xl bg-[#caf300] text-[#0c0b0e] font-mono font-bold text-xs uppercase hover:brightness-110 active:scale-98 cursor-pointer shadow-lg shadow-[#caf300]/20 flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
+              <span className="material-symbols-outlined text-[18px]">swap_horiz</span>
               <span>{t('proposeSwapPiece')}</span>
             </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                onClose();
+              }}
+              className="w-full py-3 rounded-xl bg-[#201f23] text-white font-mono text-xs uppercase hover:bg-[#2b2a30] cursor-pointer"
+            >
+              {t('close')}
+            </button>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic('light');
-              onClose();
-            }}
-            className="px-4 py-3 rounded-xl bg-[#2a2a2c] text-white font-mono text-xs uppercase hover:bg-[#353437] cursor-pointer"
-          >
-            {t('close')}
-          </button>
         </div>
       </div>
     </div>

@@ -582,6 +582,26 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </button>
             )}
           </div>
+
+          {/* Admin Moderation Desk Link */}
+          <div className="pt-2 border-t border-white/5">
+            <a
+              href="/admin"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                soundFX.playClick();
+                triggerHaptic('medium');
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-[#0d0c0f] hover:bg-[#1a191f] text-[#caf300] border border-[#caf300]/30 font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+                <span>{language === 'ar' ? 'لوحة تحكم الإدارة (ADMIN DESK)' : 'ADMIN COMMAND DESK'}</span>
+              </div>
+              <span className="text-[10px] text-[#8f9378]">PIN: 2026 ↗</span>
+            </a>
+          </div>
         </section>
       </div>
     </main>

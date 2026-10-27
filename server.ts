@@ -1771,10 +1771,17 @@ app.post('/api/telemetry/clear', (_req, res) => {
 });
 
 // Dedicated Standalone Admin Command Center route
-app.get('/admin', (_req, res) => {
-  const adminHtml = path.resolve(__dirname, 'public', 'admin.html');
-  if (fs.existsSync(adminHtml)) {
-    return res.sendFile(adminHtml);
+app.get(['/admin', '/admin/', '/admin.html'], (_req, res) => {
+  const candidates = [
+    path.resolve(__dirname, 'dist', 'admin.html'),
+    path.resolve(__dirname, 'public', 'admin.html'),
+    path.resolve(process.cwd(), 'dist', 'admin.html'),
+    path.resolve(process.cwd(), 'public', 'admin.html'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return res.sendFile(candidate);
+    }
   }
   return res.redirect('/');
 });

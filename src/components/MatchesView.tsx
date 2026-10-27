@@ -147,7 +147,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
   const [isCancelDrawerOpen, setIsCancelDrawerOpen] = useState<boolean>(false);
   const [isPinningGps, setIsPinningGps] = useState<boolean>(false);
   const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [postScanRated, setPostScanRated] = useState<'mint' | 'worn' | null>(null);
+  const [starRating, setStarRating] = useState<number | null>(null);
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -1349,7 +1349,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
             <div className="flex items-center gap-1.5 mb-3">
               <span className="material-symbols-outlined text-[#caf300] text-[19px]">confirmation_number</span>
               <span className="font-display font-bold text-sm uppercase tracking-wider text-white">
-                {language === 'ar' ? 'سواب باس // توثيق الاستلام والتسليم' : 'SWAP PASS // IN-PERSON HANDSHAKE'}
+                {language === 'ar' ? 'هاندشيك // توثيق التبادل 🤝' : 'HANDSHAKE // IN-PERSON EXCHANGE 🤝'}
               </span>
             </div>
 
@@ -1509,25 +1509,19 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                   {t('piecesSwappedWith')} @{barcodeTargetOffer.partner.handle}
                 </h3>
 
-                {/* Impact & Trust Points Reward Strip */}
-                <div className="mt-2 grid grid-cols-2 gap-2 w-full font-mono text-[10px]">
-                  <div className="p-2 rounded-xl bg-[#131315] border border-[#caf300]/30 flex items-center justify-center gap-1.5 text-[#caf300] font-bold">
-                    <span className="material-symbols-outlined text-[14px]">bolt</span>
-                    <span>{t('trustPtsReward')}</span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-[#131315] border border-white/10 flex items-center justify-center gap-1.5 text-[#c5c9ac] font-bold">
-                    <span className="material-symbols-outlined text-[14px] text-[#caf300]">eco</span>
-                    <span>{barcodeTargetOffer.co2SavedKg || 4.2}kg {t('co2SavedLabel')}</span>
-                  </div>
+                {/* Direct Trust Points Reward */}
+                <div className="mt-2.5 p-2.5 rounded-xl bg-[#caf300]/15 border border-[#caf300]/50 flex items-center justify-center gap-2 text-[#caf300] font-mono font-bold text-xs shadow-sm w-full">
+                  <span className="material-symbols-outlined text-[18px]">bolt</span>
+                  <span>+50 {language === 'ar' ? 'نقطة ثقة لحسابك (TRUST POINTS)' : 'TRUST POINTS AWARDED'}</span>
                 </div>
 
-                {/* Visual Swapped Ownership Card */}
-                <div className="mt-2 p-2.5 rounded-2xl bg-[#131315] border border-[#caf300]/30 w-full flex items-center justify-between gap-2 text-left">
-                  <div className="flex items-center gap-2 min-w-0">
+                {/* Swapped Ownership Card */}
+                <div className="mt-2.5 p-2.5 rounded-2xl bg-[#131315] border border-[#caf300]/30 w-full flex items-center justify-between gap-2 text-left">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <img
                       src={barcodeTargetOffer.theirItem.imageUrl}
                       alt={barcodeTargetOffer.theirItem.title}
-                      className="w-10 h-10 rounded-xl object-cover border border-[#caf300]/50 shrink-0"
+                      className="w-11 h-11 rounded-xl object-cover border border-[#caf300]/50 shrink-0"
                     />
                     <div className="min-w-0">
                       <span className="font-mono text-[8.5px] uppercase text-[#caf300] font-bold block">
@@ -1538,70 +1532,42 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                       </span>
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-[#caf300] text-[18px]">
-                    verified
+                  <span className="material-symbols-outlined text-[#caf300] text-[20px]">
+                    check_circle
                   </span>
                 </div>
 
-                {/* Trust Verification Badge & Passport Stamp (كسب الثقة) */}
-                <div className="mt-3 p-3 rounded-2xl bg-[#131315] border border-[#caf300]/40 w-full flex items-center justify-between gap-3 text-left">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-[#caf300]/10 border border-[#caf300]/40 flex items-center justify-center text-[#caf300] shrink-0">
-                      <span className="material-symbols-outlined text-[20px]">verified</span>
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-mono text-[9px] uppercase text-[#caf300] font-bold block">
-                        {t('cairoVerifiedStamp')}
-                      </span>
-                      <span className="font-mono text-[10px] text-[#c5c9ac] truncate block">
-                        {barcodeTargetOffer.hubLocation || selectedLocation || activeDefaultSpot.name} • {new Date().toLocaleDateString()}
-                      </span>
-                    </div>
+                {/* 5-Star Partner Rating (Slick & Optional) */}
+                <div className="mt-3 p-3 rounded-2xl bg-[#18181a] border border-white/10 w-full flex flex-col items-center gap-1.5">
+                  <div className="flex items-center justify-between w-full font-mono text-[10px] text-[#8f9378]">
+                    <span>{language === 'ar' ? 'تقييم التبادل (اختياري)' : 'RATE TRADE (OPTIONAL)'}</span>
+                    {starRating && (
+                      <span className="text-[#caf300] font-bold">{starRating}/5 ★</span>
+                    )}
                   </div>
-                  <span className="px-2.5 py-1 rounded-full bg-[#caf300] text-[#171e00] font-mono text-[9.5px] font-bold uppercase shrink-0 shadow-sm">
-                    +50 PTS
-                  </span>
-                </div>
-
-                {/* 2-Tap Post-Swap Condition & 5★ Partner Rating */}
-                <div className="mt-2 p-2.5 rounded-xl bg-[#18181a] border border-white/10 w-full flex flex-col gap-1.5">
-                  <span className="font-mono text-[9px] uppercase text-[#c5c9ac] font-bold">
-                    {t('ratePartnerPiece')}
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px]">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        triggerHaptic('success');
-                        soundFX.playMatch();
-                        setPostScanRated('mint');
-                      }}
-                      className={`py-1.5 rounded-lg font-bold uppercase cursor-pointer border transition-all ${
-                        postScanRated === 'mint'
-                          ? 'bg-[#caf300] text-[#171e00] border-[#caf300]'
-                          : 'bg-[#131315] text-[#caf300] border-[#caf300]/30 hover:bg-[#caf300]/10'
-                      }`}
-                    >
-                      {t('mintSwap')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        triggerHaptic('light');
-                        soundFX.playClick();
-                        setPostScanRated('worn');
-                      }}
-                      className={`py-1.5 rounded-lg font-bold uppercase cursor-pointer border transition-all ${
-                        postScanRated === 'worn'
-                          ? 'bg-red-500/20 text-red-300 border-red-500/40'
-                          : 'bg-[#131315] text-[#c5c9ac] border-white/10 hover:text-white'
-                      }`}
-                    >
-                      {t('slightlyWorn')}
-                    </button>
+                  <div className="flex items-center justify-center gap-2.5 py-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => {
+                          soundFX.playMatch();
+                          triggerHaptic('success');
+                          setStarRating(star);
+                        }}
+                        className={`text-2xl transition-all cursor-pointer hover:scale-125 active:scale-95 ${
+                          starRating && starRating >= star
+                            ? 'text-[#caf300] drop-shadow-[0_0_8px_rgba(202,243,0,0.6)]'
+                            : 'text-[#35343a] hover:text-[#caf300]/60'
+                        }`}
+                      >
+                        ★
+                      </button>
+                    ))}
                   </div>
                 </div>
 
+                {/* Exit / Done Action Buttons */}
                 <div className="mt-3 grid grid-cols-2 gap-2 w-full">
                   <button
                     type="button"
@@ -1625,7 +1591,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                     type="button"
                     onClick={() => {
                       triggerHaptic('light');
-                      setPostScanRated(null);
+                      setStarRating(null);
                       setIsBarcodeModalOpen(false);
                     }}
                     className="py-2.5 rounded-xl bg-[#caf300] text-[#171e00] font-mono text-xs font-bold uppercase tracking-wider hover:brightness-110 cursor-pointer shadow-md"

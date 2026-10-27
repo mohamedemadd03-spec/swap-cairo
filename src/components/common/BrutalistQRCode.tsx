@@ -14,14 +14,13 @@ interface BrutalistQRCodeProps {
 export const BrutalistQRCode: React.FC<BrutalistQRCodeProps> = ({
   value,
   size = 200,
-  label = 'AUTHENTICATED HANDOVER PASS',
-  sublabel = 'وجّه كاميرا المستلم لمسح الكود وتوثيق التبادل',
+  label = 'HANDSHAKE',
+  sublabel = 'وجّه كاميرا الطرف الآخر لمسح الكود وتوثيق التبادل',
   onSimulateScan,
   showCopy = true,
 }) => {
   const [qrSrc, setQrSrc] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
-  const [isBright, setIsBright] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -29,13 +28,13 @@ export const BrutalistQRCode: React.FC<BrutalistQRCodeProps> = ({
       try {
         const payload = value || 'SWP-7740';
         const url = await QRCode.toDataURL(payload, {
-          width: size * 2, // High DPI for retina mobile screens
+          width: size * 2,
           margin: 1.5,
           color: {
             dark: '#0c0b0e',
             light: '#ffffff',
           },
-          errorCorrectionLevel: 'H', // High error correction allows center branding
+          errorCorrectionLevel: 'H',
         });
         if (isMounted) setQrSrc(url);
       } catch (err) {
@@ -60,55 +59,26 @@ export const BrutalistQRCode: React.FC<BrutalistQRCodeProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleToggleBrightness = () => {
-    soundFX.playClick();
-    triggerHaptic('light');
-    setIsBright(!isBright);
-  };
-
   return (
     <div className="flex flex-col items-center w-full max-w-[280px] mx-auto gap-3 font-mono">
-      {/* Top Protocol Status Strip */}
-      <div className="flex items-center justify-between w-full text-[9px] text-[#8f9378] uppercase px-1">
-        <span className="flex items-center gap-1.5 text-[#caf300] font-bold">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#caf300] animate-pulse" />
-          <span>LIVE HANDOVER PASS</span>
-        </span>
-        <button
-          type="button"
-          onClick={handleToggleBrightness}
-          className="hover:text-white transition-colors cursor-pointer flex items-center gap-1"
-          title="Toggle maximum contrast"
-        >
-          <span className="material-symbols-outlined text-[13px]">
-            {isBright ? 'brightness_high' : 'brightness_medium'}
-          </span>
-          <span>{isBright ? 'MAX' : 'CONTRAST'}</span>
-        </button>
-      </div>
-
-      {/* Cyber-Brutalist Frame with Targeting Reticles */}
+      {/* Brutalist QR Container */}
       <div
         onClick={onSimulateScan}
         title={onSimulateScan ? 'انقر لمحاكاة مسح الكود فورياً' : 'QR Scan ready'}
-        className={`relative p-3 rounded-2xl border-2 transition-all cursor-pointer group active:scale-98 ${
-          isBright
-            ? 'bg-white border-[#caf300] shadow-[0_0_35px_rgba(202,243,0,0.5)]'
-            : 'bg-[#151418] border-[#caf300]/80 shadow-[0_0_25px_rgba(202,243,0,0.18)]'
-        }`}
+        className="relative p-3 rounded-2xl border-2 border-[#caf300]/80 bg-[#151418] shadow-[0_0_25px_rgba(202,243,0,0.18)] transition-all cursor-pointer group active:scale-98"
       >
-        {/* 4 Neon Volt Cyber-Reticle Corners */}
+        {/* Reticle Corners */}
         <div className="absolute top-1 left-1 w-3.5 h-3.5 border-t-2 border-l-2 border-[#caf300]" />
         <div className="absolute top-1 right-1 w-3.5 h-3.5 border-t-2 border-r-2 border-[#caf300]" />
         <div className="absolute bottom-1 left-1 w-3.5 h-3.5 border-b-2 border-l-2 border-[#caf300]" />
         <div className="absolute bottom-1 right-1 w-3.5 h-3.5 border-b-2 border-r-2 border-[#caf300]" />
 
-        {/* White QR Backing Pad with rounded inner edges */}
+        {/* Crisp White QR Backing */}
         <div className="relative p-2 bg-white rounded-xl overflow-hidden flex items-center justify-center">
           {qrSrc ? (
             <img
               src={qrSrc}
-              alt="Handshake Verification QR"
+              alt="Handshake QR"
               className="w-48 h-48 sm:w-52 sm:h-52 object-contain image-rendering-pixelated"
             />
           ) : (
@@ -117,21 +87,18 @@ export const BrutalistQRCode: React.FC<BrutalistQRCodeProps> = ({
             </div>
           )}
 
-          {/* Center Streetwear Archival Monogram Badge */}
+          {/* Center Monogram */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-10 h-10 rounded-xl bg-[#0c0b0e] border-2 border-[#caf300] shadow-[0_0_12px_rgba(0,0,0,0.8)] flex flex-col items-center justify-center p-0.5">
-              <span className="text-[9px] font-black tracking-tight text-[#caf300] font-mono leading-none">
+            <div className="w-9 h-9 rounded-xl bg-[#0c0b0e] border-2 border-[#caf300] shadow-[0_0_12px_rgba(0,0,0,0.8)] flex flex-col items-center justify-center p-0.5">
+              <span className="text-[8.5px] font-black tracking-tight text-[#caf300] font-mono leading-none">
                 SWAP
               </span>
               <span className="text-[7.5px] font-bold text-white tracking-widest leading-none mt-0.5">
-                ⇄
+                🤝
               </span>
             </div>
           </div>
         </div>
-
-        {/* Subtle Animated Scanning Laser Line */}
-        <div className="absolute inset-x-4 top-4 h-0.5 bg-[#caf300]/70 shadow-[0_0_8px_#caf300] pointer-events-none animate-pulse" />
       </div>
 
       {/* Passcode Copy & Verification Bar */}
@@ -156,7 +123,7 @@ export const BrutalistQRCode: React.FC<BrutalistQRCodeProps> = ({
           )}
         </div>
 
-        {/* Practical Usage Instruction */}
+        {/* Practical Instruction */}
         <p className="text-[10px] text-center text-[#c5c9ac] leading-tight px-2">
           {sublabel}
         </p>
@@ -165,9 +132,9 @@ export const BrutalistQRCode: React.FC<BrutalistQRCodeProps> = ({
           <button
             type="button"
             onClick={onSimulateScan}
-            className="text-[9.5px] text-[#caf300]/70 hover:text-[#caf300] underline mt-0.5 cursor-pointer uppercase transition-colors"
+            className="text-[9.5px] text-[#caf300]/80 hover:text-[#caf300] underline mt-0.5 cursor-pointer uppercase transition-colors"
           >
-            [تجربة: انقر هنا لمحاكاة المسح والتسليم الفوري]
+            [اضغط هنا لمحاكاة المسح والتسليم فوراً 🤝]
           </button>
         )}
       </div>
