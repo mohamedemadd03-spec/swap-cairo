@@ -7,6 +7,7 @@ interface ScanModalProps {
   onClose: () => void;
   onScanSuccess: (code: string) => void;
   activePassCode?: string;
+  defaultSpotName?: string;
 }
 
 export const ScanModal: React.FC<ScanModalProps> = ({
@@ -14,6 +15,7 @@ export const ScanModal: React.FC<ScanModalProps> = ({
   onClose,
   onScanSuccess,
   activePassCode = 'SWP-7740',
+  defaultSpotName = 'Espresso Lab Degla Hub #04',
 }) => {
   const [manualCode, setManualCode] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
@@ -86,9 +88,9 @@ export const ScanModal: React.FC<ScanModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#2A2A33] pb-3">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#D4FF00]">handshake</span>
+            <span className="material-symbols-outlined text-[#D4FF00]">confirmation_number</span>
             <span className="font-display-zine font-black text-lg uppercase text-white">
-              IN-PERSON HANDSHAKE
+              SWAP PASS // IN-PERSON HANDSHAKE
             </span>
           </div>
           <button
@@ -115,7 +117,7 @@ export const ScanModal: React.FC<ScanModalProps> = ({
                 Pass Code: <strong className="text-[#D4FF00] font-mono">{scannedResult.code}</strong>
               </div>
               <div className="text-[11px] text-neutral-500 mt-0.5">
-                Verified at: {scannedResult.verifiedAt} • Maadi Hub Terminal #02
+                Verified at: {scannedResult.verifiedAt} • {defaultSpotName}
               </div>
 
               <div className="mt-3 p-2 bg-neutral-900 border border-neutral-800 text-xs text-neutral-300">

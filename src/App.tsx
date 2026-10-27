@@ -1478,6 +1478,9 @@ export default function App() {
           offers={offers}
           userWardrobe={wardrobe}
           userTrustPoints={userTrustPoints}
+          currentHub={currentHub}
+          allHubs={HUB_LOCATIONS}
+          onSelectHub={setCurrentHub}
           onAcceptOffer={handleAcceptOffer}
           onDeclineOffer={handleDeclineOffer}
           onUpdateOfferGpsPin={handleUpdateOfferGpsPin}
@@ -1539,6 +1542,8 @@ export default function App() {
         isOpen={isScanOpen}
         onClose={() => setIsScanOpen(false)}
         onScanSuccess={handleScanSuccess}
+        activePassCode={actionableOffers[0]?.securityPassCode || 'SWP-7740'}
+        defaultSpotName={currentHub.name}
       />
 
       <LeaderboardModal

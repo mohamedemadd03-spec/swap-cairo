@@ -269,6 +269,8 @@ export interface HubLocation {
   address: string;
   activeSwappers: number;
   hours: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface FilterSettings {

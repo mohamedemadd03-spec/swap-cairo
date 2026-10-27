@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SwapOffer, WardrobeItem } from '../types/swap';
+import { SwapOffer, WardrobeItem, HubLocation } from '../types/swap';
 import { soundFX, triggerHaptic } from '../hooks/useSoundFX';
 import { BrutalistBurst } from './BrutalistBurst';
 import { ItemDetailModal } from './modals/ItemDetailModal';
@@ -10,6 +10,9 @@ interface MatchesViewProps {
   offers: SwapOffer[];
   userWardrobe?: WardrobeItem[];
   userTrustPoints?: number;
+  currentHub?: HubLocation;
+  allHubs?: HubLocation[];
+  onSelectHub?: (hub: HubLocation) => void;
   onAcceptOffer: (offerId: string) => void;
   onDeclineOffer: (
     offerId: string,
@@ -33,11 +36,48 @@ interface MatchesViewProps {
   onNavigateToDiscover?: () => void;
 }
 
-const CAIRO_GPS_HUBS: Array<{ name: string; lat: number; lng: number }> = [
-  { name: 'Espresso Lab Degla Hub #04', lat: 29.9602, lng: 31.2764 },
-  { name: 'Zamalek Hub (Brazil St 14)', lat: 30.0609, lng: 31.2197 },
-  { name: 'New Cairo Waterway Station', lat: 30.0419, lng: 31.4758 },
-  { name: 'Maadi Smart Lockers Pod #18', lat: 29.9585, lng: 31.2589 },
+export const CAIRO_GPS_HUBS: Array<{
+  id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+}> = [
+  {
+    id: 'hub-cairo-maadi',
+    name: 'Espresso Lab Degla Hub #04',
+    address: 'Road 213, Degla, Maadi',
+    lat: 29.9602,
+    lng: 31.2764,
+  },
+  {
+    id: 'hub-cairo-zamalek',
+    name: 'Zamalek Hub (Brazil St 14)',
+    address: '14 Brazil Street, Zamalek',
+    lat: 30.0609,
+    lng: 31.2197,
+  },
+  {
+    id: 'hub-cairo-newcairo',
+    name: 'New Cairo Waterway Station',
+    address: 'The Waterway, New Cairo',
+    lat: 30.0419,
+    lng: 31.4758,
+  },
+  {
+    id: 'hub-cairo-korba',
+    name: 'Heliopolis Korba Hub',
+    address: 'Baghdad Street, Korba',
+    lat: 30.0911,
+    lng: 31.3255,
+  },
+  {
+    id: 'hub-cairo-lockers',
+    name: 'Maadi Smart Lockers Pod #18',
+    address: 'Degla Square Pods, Maadi',
+    lat: 29.9585,
+    lng: 31.2589,
+  },
 ];
 
 const COMMON_HUBS = CAIRO_GPS_HUBS.map((h) => h.name);
@@ -59,6 +99,9 @@ function computeDistanceKm(lat1: number, lng1: number, lat2: number, lng2: numbe
 export const MatchesView: React.FC<MatchesViewProps> = ({
   offers,
   userTrustPoints = 450,
+  currentHub,
+  allHubs,
+  onSelectHub,
   onAcceptOffer,
   onDeclineOffer,
   onUpdateOfferGpsPin,
@@ -79,13 +122,39 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
   // Active chat view: null means scrolling the requests feed; string means inside focused quick chat
   const [activeChatOfferId, setActiveChatOfferId] = useState<string | null>(null);
 
+  // Derive preferred / default swap spot from currentHub or fallback to Espresso Lab Degla Hub #04
+  const activeDefaultSpot = React.useMemo(() => {
+    if (currentHub) {
+      const matched = CAIRO_GPS_HUBS.find(
+        (h) =>
+          h.id === currentHub.id ||
+          h.name.toLowerCase().includes(currentHub.name.toLowerCase().split(' ')[0])
+      );
+      if (matched) return matched;
+      return {
+        id: currentHub.id,
+        name: currentHub.name,
+        address: currentHub.address || 'Cairo, Egypt',
+        lat: currentHub.lat || 29.9602,
+        lng: currentHub.lng || 31.2764,
+      };
+    }
+    return CAIRO_GPS_HUBS[0];
+  }, [currentHub]);
+
   // Meeting location & Live GPS state per active trade
-  const [selectedLocation, setSelectedLocation] = useState<string>(COMMON_HUBS[0]);
+  const [selectedLocation, setSelectedLocation] = useState<string>(activeDefaultSpot.name);
   const [isCancelDrawerOpen, setIsCancelDrawerOpen] = useState<boolean>(false);
   const [isPinningGps, setIsPinningGps] = useState<boolean>(false);
   const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [postScanRated, setPostScanRated] = useState<'mint' | 'worn' | null>(null);
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (activeDefaultSpot) {
+      setSelectedLocation(activeDefaultSpot.name);
+    }
+  }, [activeDefaultSpot]);
 
   // Barcode scanner modal
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
@@ -142,22 +211,42 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
     soundFX.playProximityPing();
     setIsPinningGps(true);
 
-    const finalizeGpsPin = (lat: number, lng: number) => {
+    const finalizeGpsPin = (lat: number, lng: number, forcedDefault = false) => {
       setUserGpsCoords({ lat, lng });
-      // Find closest Cairo hub for context
-      let closestHub = CAIRO_GPS_HUBS[0];
-      let minKm = computeDistanceKm(lat, lng, closestHub.lat, closestHub.lng);
-      for (const h of CAIRO_GPS_HUBS) {
-        const d = computeDistanceKm(lat, lng, h.lat, h.lng);
-        if (d < minKm) {
-          minKm = d;
-          closestHub = h;
+
+      let spotLabel = `${activeDefaultSpot.name} • ${activeDefaultSpot.address}`;
+      let distanceMeters = 35;
+
+      // Check if coordinate is in/near Greater Cairo (lat 29.0 to 31.3, lng 30.5 to 32.2)
+      const isWithinCairo = lat >= 29.0 && lat <= 31.3 && lng >= 30.5 && lng <= 32.2;
+
+      if (!forcedDefault && isWithinCairo) {
+        // Find closest Cairo hub for context
+        let closestHub = activeDefaultSpot;
+        let minKm = computeDistanceKm(lat, lng, closestHub.lat, closestHub.lng);
+        for (const h of CAIRO_GPS_HUBS) {
+          const d = computeDistanceKm(lat, lng, h.lat, h.lng);
+          if (d < minKm) {
+            minKm = d;
+            closestHub = h;
+          }
         }
+
+        if (minKm <= 1.2) {
+          spotLabel = `${closestHub.name} • ${closestHub.address}`;
+          distanceMeters = Math.max(25, Math.round(minKm * 1000));
+        } else {
+          spotLabel = `📍 Live Radar • ${closestHub.name} (${minKm}km)`;
+          distanceMeters = Math.round(minKm * 1000);
+        }
+      } else {
+        // Fallback cleanly to user's Default Spot (rock-solid, street-accurate)
+        lat = activeDefaultSpot.lat;
+        lng = activeDefaultSpot.lng;
+        spotLabel = `📍 Agreed Default Spot: ${activeDefaultSpot.name} • ${activeDefaultSpot.address}`;
+        distanceMeters = 25;
       }
-      const spotLabel =
-        minKm <= 1.5
-          ? `${closestHub.name} (${Math.round(minKm * 1000)}m)`
-          : `Live GPS Radar • ${closestHub.name.split(' ')[0]} (${minKm}km)`;
+
       setSelectedLocation(spotLabel);
       setIsPinningGps(false);
 
@@ -166,7 +255,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
           lat,
           lng,
           label: spotLabel,
-          distanceMeters: Math.round(minKm * 1000),
+          distanceMeters,
         });
       } else {
         handleSendChatMessage(
@@ -175,8 +264,8 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
       }
       flashToast(
         language === 'ar'
-          ? '📍 تم مشاركة موقعك المباشر في الشات!'
-          : `📍 Exact GPS Meetup Pin shared in chat!`
+          ? `📍 تم تثبيت نقطة المقابلة: ${activeDefaultSpot.name}`
+          : `📍 Default Spot pinned: ${activeDefaultSpot.name}`
       );
     };
 
@@ -186,13 +275,13 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
           finalizeGpsPin(pos.coords.latitude, pos.coords.longitude);
         },
         () => {
-          // Fallback to Cairo Degla coordinates if user denies browser geolocation prompt
-          finalizeGpsPin(29.9604, 31.2762);
+          // Fallback cleanly to user's Default Spot when permission denied or unavailable
+          finalizeGpsPin(activeDefaultSpot.lat, activeDefaultSpot.lng, true);
         },
-        { enableHighAccuracy: true, timeout: 4000 }
+        { enableHighAccuracy: true, timeout: 3500 }
       );
     } else {
-      finalizeGpsPin(29.9604, 31.2762);
+      finalizeGpsPin(activeDefaultSpot.lat, activeDefaultSpot.lng, true);
     }
   };
 
@@ -223,18 +312,22 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
   const handleSelectLocation = (hub: string) => {
     soundFX.playClick();
     setSelectedLocation(hub);
-    const hubInfo = CAIRO_GPS_HUBS.find((h) => h.name === hub) || CAIRO_GPS_HUBS[0];
+    const hubInfo = CAIRO_GPS_HUBS.find((h) => h.name === hub) || activeDefaultSpot;
     if (activeChatOffer && onUpdateOfferGpsPin) {
       onUpdateOfferGpsPin(activeChatOffer.id, {
         lat: hubInfo.lat,
         lng: hubInfo.lng,
         label: hub,
-        distanceMeters: 120,
+        distanceMeters: 30,
       });
     } else {
-      handleSendChatMessage(`📍 Let's meet at ${hub} for the handover.`);
+      handleSendChatMessage(`📍 Agreed Swap Spot: ${hub}`);
     }
-    flashToast(`Meeting spot set to ${hub}`);
+    flashToast(
+      language === 'ar'
+        ? `📍 تم تثبيت النقطة: ${hub}`
+        : `Meeting spot set to ${hub}`
+    );
   };
 
   React.useEffect(() => {
@@ -665,28 +758,49 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                             </span>
                           </div>
                           <p className="font-mono text-[9.5px] text-[#8f9378] leading-snug">
-                            GPS meetup spot agreed between swappers.
+                            {language === 'ar'
+                              ? 'نقطة المقابلة المعتمدة للسواب بين الطرفين.'
+                              : 'Agreed safe meetup spot for in-person swap handover.'}
                           </p>
                           <div className="grid grid-cols-2 gap-1.5 pt-1">
                             <a
                               href={`https://www.google.com/maps/dir/?api=1&destination=${pinLat},${pinLng}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="py-1.5 rounded-lg bg-[#caf300] text-[#171e00] font-mono text-[9.5px] font-bold uppercase text-center hover:brightness-110 flex items-center justify-center gap-1"
+                              className="py-1.5 rounded-lg bg-[#caf300] text-[#171e00] font-mono text-[9.5px] font-bold uppercase text-center hover:brightness-110 flex items-center justify-center gap-1 cursor-pointer"
                             >
-                              <span className="material-symbols-outlined text-[12px]">near_me</span>
-                              <span>Navigate ↗</span>
+                              <span className="material-symbols-outlined text-[13px]">near_me</span>
+                              <span>{language === 'ar' ? 'الخريطة ↗' : 'Navigate ↗'}</span>
                             </a>
                             <button
                               type="button"
-                              onClick={handlePinExactGpsLocation}
-                              className="py-1.5 rounded-lg bg-[#201f21] hover:bg-[#2a2a2c] text-white font-mono text-[9.5px] font-bold uppercase border border-white/10 cursor-pointer flex items-center justify-center gap-1"
+                              onClick={() => openScanner(activeChatOffer)}
+                              className="py-1.5 rounded-lg bg-[#201f21] hover:bg-[#2a2a2c] text-[#caf300] font-mono text-[9.5px] font-bold uppercase border border-[#caf300]/40 cursor-pointer flex items-center justify-center gap-1 transition-all active:scale-95"
                             >
-                              <span className="material-symbols-outlined text-[12px] text-[#caf300]">
-                                my_location
-                              </span>
-                              <span>Share Mine</span>
+                              <span className="material-symbols-outlined text-[13px]">confirmation_number</span>
+                              <span>{language === 'ar' ? 'سواب باس 🎫' : 'Swap Pass 🎫'}</span>
                             </button>
+                          </div>
+
+                          {/* Cairo Hub Quick Switch Chips */}
+                          <div className="flex items-center gap-1 overflow-x-auto py-0.5 no-scrollbar border-t border-white/5 pt-1">
+                            <span className="text-[8px] font-mono uppercase text-[#8f9378] shrink-0">
+                              {language === 'ar' ? 'الهاب:' : 'Hub:'}
+                            </span>
+                            {CAIRO_GPS_HUBS.map((h) => (
+                              <button
+                                key={h.id}
+                                type="button"
+                                onClick={() => handleSelectLocation(h.name)}
+                                className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase shrink-0 transition-colors cursor-pointer ${
+                                  pinLabel.includes(h.name.split(' ')[0])
+                                    ? 'bg-[#caf300] text-[#171e00]'
+                                    : 'bg-[#201f21] text-[#c5c9ac] hover:text-white border border-white/5'
+                                }`}
+                              >
+                                {h.name.split(' ')[0]}
+                              </button>
+                            ))}
                           </div>
                         </div>
                       </div>
@@ -1233,9 +1347,9 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
 
             {/* Modal Header */}
             <div className="flex items-center gap-1.5 mb-3">
-              <span className="material-symbols-outlined text-[#caf300] text-[19px]">handshake</span>
+              <span className="material-symbols-outlined text-[#caf300] text-[19px]">confirmation_number</span>
               <span className="font-display font-bold text-sm uppercase tracking-wider text-white">
-                {t('handshake')}
+                {language === 'ar' ? 'سواب باس // توثيق الاستلام والتسليم' : 'SWAP PASS // IN-PERSON HANDSHAKE'}
               </span>
             </div>
 
@@ -1440,7 +1554,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                         {t('cairoVerifiedStamp')}
                       </span>
                       <span className="font-mono text-[10px] text-[#c5c9ac] truncate block">
-                        {barcodeTargetOffer.hubLocation || 'Cairo Hub'} • {new Date().toLocaleDateString()}
+                        {barcodeTargetOffer.hubLocation || selectedLocation || activeDefaultSpot.name} • {new Date().toLocaleDateString()}
                       </span>
                     </div>
                   </div>
