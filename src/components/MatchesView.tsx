@@ -458,21 +458,6 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                   </>
                 ) : (
                   <>
-                    {activeChatOffer.status === 'accepted' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleSendChatMessage(
-                            `📍 I'm here at ${selectedLocation}! Opening Handshake now.`
-                          );
-                          openScanner(activeChatOffer);
-                        }}
-                        title="Notify partner you've arrived & open Handshake"
-                        className="px-2 py-1.5 rounded-xl bg-[#131315] hover:bg-[#caf300]/15 text-[#caf300] font-mono text-[9.5px] uppercase font-bold border border-[#caf300]/40 cursor-pointer transition-colors"
-                      >
-                        {t('imHere')}
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -606,7 +591,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
           </div>
 
           {/* Full-Height Conversation Stream with Custom SWAP Brutalist GPS Radar Cards */}
-          <div className="h-[calc(100dvh-252px)] min-h-[280px] rounded-2xl bg-[#1c1b1d] border border-[#26262e] overflow-hidden flex flex-col shadow-lg">
+          <div className="h-[calc(100dvh-200px)] min-h-[340px] rounded-2xl bg-[#1c1b1d] border border-[#26262e] overflow-hidden flex flex-col shadow-lg">
             <div className="flex-1 p-3 flex flex-col gap-2.5 overflow-y-auto">
               {(activeChatOffer.messages && activeChatOffer.messages.length > 0
                 ? activeChatOffer.messages
@@ -723,34 +708,6 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                 );
               })}
               <div ref={messagesEndRef} />
-            </div>
-
-            {/* 100% Visible 3-Column Quick Coordination Bar (No hidden horizontal scroll) */}
-            <div className="px-2.5 py-1.5 bg-[#18181a] border-t border-white/5 grid grid-cols-3 gap-1.5">
-              {[
-                { label: t('shareGps'), action: handlePinExactGpsLocation, highlight: true },
-                {
-                  label: t('deglaHub'),
-                  action: () => handleSelectLocation('Espresso Lab Degla Hub #04'),
-                },
-                {
-                  label: t('meet6pm'),
-                  action: () => handleSendChatMessage('Can we meet today around 6 PM? 🕕'),
-                },
-              ].map((chip, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={chip.action}
-                  className={`py-1.5 px-1.5 rounded-lg font-mono text-[9.5px] text-center truncate border cursor-pointer transition-colors ${
-                    chip.highlight
-                      ? 'bg-[#caf300]/15 text-[#caf300] border-[#caf300]/40 font-bold'
-                      : 'bg-[#201f21] hover:bg-[#2a2a2c] text-[#c5c9ac] hover:text-white border-white/5'
-                  }`}
-                >
-                  {chip.label}
-                </button>
-              ))}
             </div>
 
             {/* WhatsApp-Style Message Input Bar with Integrated Live GPS Share Button */}
