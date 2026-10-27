@@ -77,9 +77,16 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
 
     const cleanUser = registerUsername.trim();
     const cleanPhone = registerPhone.trim();
+    const cleanDigits = cleanPhone.replace(/\D/g, '');
 
     if (!cleanUser || cleanUser.length < 2) {
-      setErrorMsg(isAr ? 'يرجى اختيار اسم مستخدم (هاندل ستريتوير) لا يقل عن حرفين' : 'Please choose a username of at least 2 characters');
+      setErrorMsg(isAr ? 'يرجى كتابة اسم المستخدم أو هاندل الستريتوير' : 'Please choose a username of at least 2 characters');
+      triggerHaptic('error');
+      return;
+    }
+
+    if (!cleanPhone || cleanDigits.length < 9) {
+      setErrorMsg(isAr ? 'يرجى إدخال رقم هاتف صحيح (010/011/012/015)' : 'Please enter a valid phone number');
       triggerHaptic('error');
       return;
     }
@@ -98,7 +105,7 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
       const user = await authService.register(
         cleanUser,
         registerPassword,
-        cleanPhone || undefined,
+        cleanPhone,
         cleanUser
       );
       triggerHaptic('trade');
@@ -122,10 +129,10 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
             SW
           </div>
           <h1 className="font-display font-black text-xl uppercase tracking-wider text-white mt-1">
-            SWAP // CAIRO ARCHIVE
+            SWAP // CAIRO
           </h1>
           <p className="font-mono text-xs text-[#c5c9ac]">
-            {isAr ? 'بورصة تبادل الستريتوير في القاهرة والجيزة' : 'Cairo Brutalist Streetwear Barter'}
+            {isAr ? 'منصة تبادل الستريتوير في مصر' : 'Cairo Streetwear Barter Exchange'}
           </p>
         </div>
 
@@ -225,7 +232,7 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
               className="mt-1 w-full py-3 px-4 rounded-xl bg-[#caf300] text-[#0c0b0e] font-mono text-sm font-black uppercase tracking-wider hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(202,243,0,0.3)] disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[18px]">login</span>
-              <span>{isSubmitting ? (isAr ? 'جاري التحقق...' : 'Signing in...') : (isAr ? 'تسجيل الدخول إلى SWAP' : 'SIGN IN TO SWAP')}</span>
+              <span>{isSubmitting ? (isAr ? 'جاري الدخول...' : 'Signing in...') : (isAr ? 'دخول ⚡' : 'SIGN IN ⚡')}</span>
             </button>
 
             <button
@@ -236,7 +243,7 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
               }}
               className="text-center font-mono text-xs text-[#8f9378] hover:text-[#caf300] transition-colors cursor-pointer py-1"
             >
-              {isAr ? 'ليس لديك حساب بعد؟ سجل حساب جديد الآن ⚡' : 'No account yet? Create one now ⚡'}
+              {isAr ? 'ليس لديك حساب بعد؟ سجل حساب جديد ⚡' : 'No account yet? Create one now ⚡'}
             </button>
           </form>
         )}
@@ -247,14 +254,14 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
             <div className="flex flex-col gap-1 font-mono">
               <label className="text-[11px] font-bold text-[#c5c9ac] uppercase flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px] text-[#caf300]">alternate_email</span>
-                <span>{isAr ? 'اسم المستخدم (Streetwear Handle)' : 'Streetwear Handle'}</span>
+                <span>{isAr ? 'هاندل الستريتوير (اسم المستخدم)' : 'Streetwear Handle'}</span>
               </label>
               <input
                 type="text"
                 autoFocus
                 value={registerUsername}
                 onChange={(e) => setRegisterUsername(e.target.value)}
-                placeholder={isAr ? 'مثال: @ziad_cairo أو كريم' : '@ziad_cairo or Karim'}
+                placeholder={isAr ? 'مثال: @ziad_cairo' : '@ziad_cairo'}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c1b1f] border border-white/10 focus:border-[#caf300] text-white font-mono text-sm placeholder:text-[#5f634b] outline-none transition-colors"
               />
             </div>
@@ -262,7 +269,7 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
             <div className="flex flex-col gap-1 font-mono">
               <label className="text-[11px] font-bold text-[#c5c9ac] uppercase flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px] text-[#caf300]">call</span>
-                <span>{isAr ? 'رقم الهاتف المحمول (لتنسيق المقابلات)' : 'Phone Number (for Meetups)'}</span>
+                <span>{isAr ? 'رقم الموبايل' : 'Phone Number'}</span>
               </label>
               <div className="flex items-center rounded-xl bg-[#1c1b1f] border border-white/10 focus-within:border-[#caf300] overflow-hidden">
                 <span className="px-3 py-2.5 font-mono text-xs font-bold text-[#caf300] bg-white/5 border-r border-white/10 shrink-0">
@@ -309,7 +316,7 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
               className="mt-1 w-full py-3 px-4 rounded-xl bg-[#caf300] text-[#0c0b0e] font-mono text-sm font-black uppercase tracking-wider hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(202,243,0,0.3)] disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[18px]">bolt</span>
-              <span>{isSubmitting ? (isAr ? 'جاري إنشاء الحساب...' : 'Creating...') : (isAr ? 'إنشاء الحساب وبدء التبادل' : 'CREATE ACCOUNT & JOIN')}</span>
+              <span>{isSubmitting ? (isAr ? 'جاري إنشاء الحساب...' : 'Creating...') : (isAr ? 'إنشاء الحساب ⚡' : 'CREATE ACCOUNT ⚡')}</span>
             </button>
 
             <button
@@ -324,15 +331,6 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
             </button>
           </form>
         )}
-
-        {/* Security & Verification Assurance Footer */}
-        <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[10px] font-mono text-[#8f9378]">
-          <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[12px] text-[#caf300]">verified_user</span>
-            <span>{isAr ? 'تأمين حقيقي 100%' : '100% Real Security'}</span>
-          </span>
-          <span className="text-[#caf300] font-bold">+50 PTS WELCOME</span>
-        </div>
       </div>
     </div>
   );

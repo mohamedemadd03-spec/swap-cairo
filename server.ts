@@ -1684,27 +1684,50 @@ app.get('/api/admin/overview', (req, res) => {
   });
 });
 
-// 3. One-click Ban User & Purge Closet
+// 3. One-click Ban User & Phone Number & Purge Closet
 app.post('/api/admin/ban-user', (req, res) => {
   if (!verifyAdminAuth(req)) {
     return res.status(403).json({ success: false, error: 'Unauthorized' });
   }
 
-  const { handle, reason = 'نشر محتوى مضلل أو خرق شروط السواب' } = req.body || {};
-  if (!handle) {
-    return res.status(400).json({ success: false, error: 'Handle is required' });
+  const { handle, phoneNumber, reason = 'نشر محتوى مضلل أو خرق شروط السواب' } = req.body || {};
+  const normInput = String(handle || phoneNumber || '').trim();
+  if (!normInput) {
+    return res.status(400).json({ success: false, error: 'Handle or Phone Number is required' });
   }
 
-  const normHandle = String(handle).toLowerCase().trim();
+  const cleanDigits = normInput.replace(/\D/g, '');
   const dbState = readServerDb() || {};
   const users = dbState.users || [];
   const bannedHandles = new Set(dbState.bannedHandles || []);
 
-  bannedHandles.add(normHandle);
+  // Find target user by handle, email, or phone
+  const targetUser = users.find(
+    (u) =>
+      u.handle.toLowerCase() === normInput.toLowerCase() ||
+      `@${u.handle.toLowerCase()}` === normInput.toLowerCase() ||
+      (cleanDigits.length >= 8 && u.phoneNumber && u.phoneNumber.replace(/\D/g, '').endsWith(cleanDigits.slice(-8))) ||
+      (u.email && u.email.toLowerCase() === normInput.toLowerCase())
+  );
+
+  const matchedHandle = targetUser ? targetUser.handle.toLowerCase() : normInput.toLowerCase();
+  bannedHandles.add(matchedHandle);
+
+  if (targetUser?.phoneNumber) {
+    bannedHandles.add(targetUser.phoneNumber);
+    bannedHandles.add(targetUser.phoneNumber.replace(/\D/g, ''));
+  } else if (cleanDigits.length >= 8) {
+    bannedHandles.add(cleanDigits);
+  }
 
   // Update user record if exists
   const updatedUsers = users.map((u) => {
-    if (u.handle.toLowerCase() === normHandle || (u.email && u.email.toLowerCase() === normHandle)) {
+    const isMatch =
+      u.handle.toLowerCase() === matchedHandle ||
+      (targetUser && u.uid === targetUser.uid) ||
+      (cleanDigits.length >= 8 && u.phoneNumber && u.phoneNumber.replace(/\D/g, '').endsWith(cleanDigits.slice(-8)));
+
+    if (isMatch) {
       return {
         ...u,
         isBanned: true,
@@ -1718,21 +1741,21 @@ app.post('/api/admin/ban-user', (req, res) => {
   // Purge all garments uploaded by this user
   let garments = dbState.garments || [];
   let wardrobe = dbState.wardrobe || [];
-  garments = garments.filter((g) => g.owner?.handle?.toLowerCase() !== normHandle);
-  wardrobe = wardrobe.filter((w) => (w as any).ownerHandle?.toLowerCase() !== normHandle);
+  garments = garments.filter((g) => g.owner?.handle?.toLowerCase() !== matchedHandle);
+  wardrobe = wardrobe.filter((w) => (w as any).ownerHandle?.toLowerCase() !== matchedHandle);
 
   // Cancel any offers
   let offers = dbState.offers || [];
   offers = offers.filter(
     (o) =>
-      o.partner?.handle?.toLowerCase() !== normHandle &&
-      o.theirItem?.owner?.handle?.toLowerCase() !== normHandle
+      o.partner?.handle?.toLowerCase() !== matchedHandle &&
+      o.theirItem?.owner?.handle?.toLowerCase() !== matchedHandle
   );
 
   // Mark pending reports on this user as resolved_deleted
   let reports = dbState.reports || [];
   reports = reports.map((r) =>
-    r.garmentOwnerHandle.toLowerCase() === normHandle && r.status === 'pending'
+    r.garmentOwnerHandle.toLowerCase() === matchedHandle && r.status === 'pending'
       ? { ...r, status: 'resolved_deleted', resolvedAt: new Date().toISOString() }
       : r
   );
@@ -1748,29 +1771,44 @@ app.post('/api/admin/ban-user', (req, res) => {
 
   return res.json({
     success: true,
-    message: `تم حظر المستخدم ${normHandle} ومسح جميع معروضاته بنجاح.`,
-    bannedHandle: normHandle,
+    message: `تم حظر المستخدم (${matchedHandle}) ورقم الهاتف ومسح جميع معروضاته بنجاح.`,
+    bannedHandle: matchedHandle,
   });
 });
 
-// 4. Unban User
+// 4. Unban User & Phone Number
 app.post('/api/admin/unban-user', (req, res) => {
   if (!verifyAdminAuth(req)) {
     return res.status(403).json({ success: false, error: 'Unauthorized' });
   }
 
-  const { handle } = req.body || {};
-  if (!handle) {
-    return res.status(400).json({ success: false, error: 'Handle required' });
+  const { handle, phoneNumber } = req.body || {};
+  const normInput = String(handle || phoneNumber || '').trim();
+  if (!normInput) {
+    return res.status(400).json({ success: false, error: 'Handle or Phone Number required' });
   }
 
-  const normHandle = String(handle).toLowerCase().trim();
+  const cleanDigits = normInput.replace(/\D/g, '');
   const dbState = readServerDb() || {};
   const users = dbState.users || [];
-  const bannedHandles = (dbState.bannedHandles || []).filter((h) => h.toLowerCase() !== normHandle);
+
+  const targetUser = users.find(
+    (u) =>
+      u.handle.toLowerCase() === normInput.toLowerCase() ||
+      `@${u.handle.toLowerCase()}` === normInput.toLowerCase() ||
+      (cleanDigits.length >= 8 && u.phoneNumber && u.phoneNumber.replace(/\D/g, '').endsWith(cleanDigits.slice(-8)))
+  );
+
+  const matchedHandle = targetUser ? targetUser.handle.toLowerCase() : normInput.toLowerCase();
+  const phoneToRemove = targetUser?.phoneNumber ? targetUser.phoneNumber.replace(/\D/g, '') : cleanDigits;
+
+  const bannedHandles = (dbState.bannedHandles || []).filter((h) => {
+    const norm = h.toLowerCase();
+    return norm !== matchedHandle && norm !== `@${matchedHandle}` && (!phoneToRemove || !norm.includes(phoneToRemove));
+  });
 
   const updatedUsers = users.map((u) => {
-    if (u.handle.toLowerCase() === normHandle) {
+    if (u.handle.toLowerCase() === matchedHandle || (targetUser && u.uid === targetUser.uid)) {
       return { ...u, isBanned: false, banReason: undefined, bannedAt: undefined };
     }
     return u;
@@ -1783,7 +1821,7 @@ app.post('/api/admin/unban-user', (req, res) => {
 
   return res.json({
     success: true,
-    message: `تم إلغاء الحظر عن ${normHandle} بنجاح.`,
+    message: `تم فك الحظر عن المستخدم (${matchedHandle}) ورقم هاتفه بنجاح.`,
   });
 });
 

@@ -195,8 +195,14 @@
 
       <!-- TAB 2: USERS & BANNING -->
       <div id="tabUsersView" style="display: none;">
-        <input type="text" id="userSearch" placeholder="ابحث باسم المستخدم @handle أو البريد..." oninput="filterUsers()" 
-          style="width: 100%; background: var(--card); border: 1px solid var(--border); color: #fff; padding: 12px 14px; border-radius: 12px; margin-bottom: 12px; outline: none;" />
+        <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+          <input type="text" id="userSearch" placeholder="ابحث باسم المستخدم @handle أو رقم الهاتف 010... أو الاسم..." oninput="filterUsers()" 
+            style="flex: 1; min-width: 240px; background: var(--card); border: 1px solid var(--border); color: #fff; padding: 12px 14px; border-radius: 12px; outline: none; font-size: 13px;" />
+          <button class="btn btn-red" onclick="banCustomInput()" style="width: auto; padding: 0 16px; white-space: nowrap; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-outlined" style="font-size: 16px;">block</span>
+            <span>حظر يدوي (رقم هاتف / هاندل)</span>
+          </button>
+        </div>
         <div id="usersList">
           <p style="text-align: center; color: var(--muted); font-size: 12px; padding: 30px;">جارٍ تحميل المستخدمين...</p>
         </div>
@@ -293,6 +299,11 @@
         repContainer.innerHTML = reports.map(r => {
           const isPending = r.status === 'pending';
           const isDeleted = r.status === 'resolved_deleted';
+          const owner = (globalData.users || []).find(u => u.handle.toLowerCase() === r.garmentOwnerHandle.toLowerCase());
+          const ownerPhone = owner?.phoneNumber || '';
+          const cleanOwnerDigits = ownerPhone.replace(/\D/g, '');
+          const waOwnerNumber = cleanOwnerDigits.startsWith('01') ? ('2' + cleanOwnerDigits) : cleanOwnerDigits;
+
           return `
             <div class="list-card" style="${isPending ? 'border-color: rgba(202,243,0,0.3);' : 'opacity: 0.65;'}">
               <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
@@ -301,7 +312,14 @@
                   <div style="min-width: 0;">
                     <div style="font-weight: 800; font-size: 13px; color: #fff;">${r.garmentTitle}</div>
                     <div class="mono" style="font-size: 11px; color: var(--volt);">صاحب القطعة: ${r.garmentOwnerHandle}</div>
-                    <div style="font-size: 10px; color: var(--muted);">أُبلغ بواسطة: ${r.reportedBy} • ${new Date(r.reportedAt).toLocaleDateString()}</div>
+                    ${ownerPhone ? `
+                      <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 11px;">
+                        <span style="color: #fff; font-family: monospace; font-weight: bold;">📞 ${ownerPhone}</span>
+                        <a href="tel:${ownerPhone}" style="color: #fff; background: #26262b; padding: 2px 6px; border-radius: 4px; text-decoration: none; font-size: 10px;">اتصال</a>
+                        <a href="https://wa.me/${waOwnerNumber}" target="_blank" rel="noopener noreferrer" style="color: #25D366; background: rgba(37,211,102,0.15); padding: 2px 6px; border-radius: 4px; text-decoration: none; font-size: 10px;">واتساب 💬</a>
+                      </div>
+                    ` : ''}
+                    <div style="font-size: 10px; color: var(--muted); margin-top: 2px;">أُبلغ بواسطة: ${r.reportedBy} • ${new Date(r.reportedAt).toLocaleDateString()}</div>
                   </div>
                 </div>
                 <span class="badge ${isPending ? 'badge-pending' : isDeleted ? 'badge-banned' : 'badge-active'}">
@@ -323,7 +341,7 @@
                     <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
                     <span>حذف القطعة</span>
                   </button>
-                  <button class="btn btn-red" onclick="banUserFromReport('${r.garmentOwnerHandle}')">
+                  <button class="btn btn-red" onclick="banUserFromReport('${r.garmentOwnerHandle}', '${ownerPhone}')">
                     <span class="material-symbols-outlined" style="font-size: 14px;">block</span>
                     <span>حظر صاحبها</span>
                   </button>
@@ -340,41 +358,90 @@
 
     function renderUsers() {
       if (!globalData) return;
-      const search = (document.getElementById('userSearch')?.value || '').toLowerCase().trim();
-      const bannedSet = new Set(globalData.bannedHandles.map(h => h.toLowerCase()));
+      const rawSearch = (document.getElementById('userSearch')?.value || '').toLowerCase().trim();
+      const searchDigits = rawSearch.replace(/\D/g, '');
+      const bannedSet = new Set((globalData.bannedHandles || []).map(h => String(h).toLowerCase()));
 
-      const filtered = globalData.users.filter(u => 
-        !search || u.handle.toLowerCase().includes(search) || u.email.toLowerCase().includes(search)
-      );
+      const filtered = (globalData.users || []).filter(u => {
+        if (!rawSearch) return true;
+        const hMatch = (u.handle || '').toLowerCase().includes(rawSearch);
+        const nameMatch = (u.displayName || '').toLowerCase().includes(rawSearch);
+        const emailMatch = (u.email || '').toLowerCase().includes(rawSearch);
+        const phone = (u.phoneNumber || '');
+        const phoneMatch = phone.toLowerCase().includes(rawSearch);
+        const digitMatch = searchDigits.length >= 3 && phone.replace(/\D/g, '').includes(searchDigits);
+        return hMatch || nameMatch || emailMatch || phoneMatch || digitMatch;
+      });
 
       const uContainer = document.getElementById('usersList');
       if (filtered.length === 0) {
-        uContainer.innerHTML = '<p style="text-align: center; color: var(--muted); font-size: 12px; padding: 20px;">لا يوجد مستخدمين مطابقين</p>';
+        uContainer.innerHTML = '<p style="text-align: center; color: var(--muted); font-size: 12px; padding: 30px; background: var(--card); border-radius: 14px; border: 1px solid var(--border);">لا يوجد مستخدمين مطابقين للبحث</p>';
         return;
       }
 
       uContainer.innerHTML = filtered.map(u => {
-        const isBanned = u.isBanned || bannedSet.has(u.handle.toLowerCase());
+        const phoneDigits = (u.phoneNumber || '').replace(/\D/g, '');
+        const isBanned = u.isBanned || 
+          bannedSet.has(u.handle.toLowerCase()) || 
+          (u.phoneNumber && bannedSet.has(u.phoneNumber.toLowerCase())) ||
+          (phoneDigits && bannedSet.has(phoneDigits));
+
+        const waNumber = phoneDigits.startsWith('01') ? ('2' + phoneDigits) : (phoneDigits.startsWith('20') ? phoneDigits : phoneDigits);
+
         return `
-          <div class="list-card" style="flex-direction: row; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-              <img src="${u.photoURL || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + u.handle}" class="thumb" style="border-radius: 50%;" />
-              <div style="min-width: 0;">
-                <div style="font-weight: 700; font-size: 13px;">${u.displayName || u.handle} <span class="mono" style="font-size: 11px; color: var(--volt);">${u.handle}</span></div>
-                <div style="font-size: 10.5px; color: var(--muted);">${u.email} • رصيد: ${u.trustPoints || 450} نقطة</div>
-                ${isBanned ? `<div style="color: var(--red); font-size: 10px; font-weight: bold;">⛔ محظور: ${u.banReason || 'مخالفة معايير سواب'}</div>` : ''}
+          <div class="list-card" style="border-color: ${isBanned ? 'rgba(255, 59, 48, 0.4)' : 'var(--border)'}; background: ${isBanned ? 'rgba(255, 59, 48, 0.04)' : 'var(--card)'};">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                <img src="${u.photoURL || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + u.handle}" class="thumb" style="border-radius: 50%; width: 48px; height: 48px;" />
+                <div style="min-width: 0;">
+                  <div style="font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span>${u.displayName || u.handle}</span>
+                    <span class="mono" style="font-size: 12px; color: var(--volt); background: rgba(202,243,0,0.1); padding: 1px 6px; border-radius: 6px;">${u.handle}</span>
+                  </div>
+                  
+                  <!-- Phone Details & Actions -->
+                  <div style="display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap;">
+                    ${u.phoneNumber ? `
+                      <span class="mono" style="font-size: 12px; font-weight: 700; color: #fff; background: #1c1b20; border: 1px solid rgba(202,243,0,0.3); padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                        <span style="color: var(--volt);">📞</span>
+                        <span>${u.phoneNumber}</span>
+                      </span>
+                      <a href="tel:${u.phoneNumber}" style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: #222127; color: #fff; text-decoration: none; border: 1px solid #333;">
+                        <span>اتصال</span>
+                      </a>
+                      <a href="https://wa.me/${waNumber}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: rgba(37,211,102,0.12); color: #25D366; text-decoration: none; border: 1px solid rgba(37,211,102,0.3);">
+                        <span>واتساب 💬</span>
+                      </a>
+                      <button type="button" onclick="copyText('${u.phoneNumber}')" style="background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 2px 4px; font-size: 11px;" title="نسخ الرقم">
+                        📋
+                      </button>
+                    ` : `
+                      <span style="font-size: 11px; color: var(--muted);">لا يوجد رقم مسجل</span>
+                    `}
+                    <span style="font-size: 11px; color: var(--muted);">• رصيد: <strong style="color: #fff;">${u.trustPoints || 450}</strong> نقطة</span>
+                  </div>
+
+                  ${isBanned ? `
+                    <div style="color: var(--red); font-size: 11px; font-weight: bold; margin-top: 6px; display: flex; align-items: center; gap: 4px;">
+                      <span>⛔ حساب محظور: ${u.banReason || 'مخالفة معايير سواب'}</span>
+                    </div>
+                  ` : ''}
+                </div>
               </div>
-            </div>
-            <div>
-              ${isBanned ? `
-                <button class="btn btn-dim" style="width: auto; padding: 8px 14px; font-size: 11px; color: var(--green);" onclick="unbanUser('${u.handle}')">
-                  فك الحظر
-                </button>
-              ` : `
-                <button class="btn btn-red" style="width: auto; padding: 8px 14px; font-size: 11px;" onclick="promptBanUser('${u.handle}')">
-                  حظر فوري 🚫
-                </button>
-              `}
+
+              <div style="display: flex; gap: 6px;">
+                ${isBanned ? `
+                  <button class="btn btn-dim" style="width: auto; padding: 8px 14px; font-size: 11px; color: var(--green); border-color: rgba(52,199,89,0.3);" onclick="unbanUser('${u.handle}', '${u.phoneNumber || ''}')">
+                    <span class="material-symbols-outlined" style="font-size: 15px;">lock_open</span>
+                    <span>فك الحظر</span>
+                  </button>
+                ` : `
+                  <button class="btn btn-red" style="width: auto; padding: 8px 14px; font-size: 11px;" onclick="promptBanUser('${u.handle}', '${u.phoneNumber || ''}')">
+                    <span class="material-symbols-outlined" style="font-size: 15px;">block</span>
+                    <span>حظر فوري</span>
+                  </button>
+                `}
+              </div>
             </div>
           </div>
         `;
@@ -434,24 +501,40 @@
       }
     }
 
-    async function promptBanUser(handle) {
-      const reason = prompt(`اكتب سبب حظر ${handle}:`, 'رفع صور ساخرة / هزلية غير مطابقة للواقع');
-      if (!reason) return;
-      banUser(handle, reason);
+    function copyText(txt) {
+      if (!txt) return;
+      navigator.clipboard.writeText(txt);
+      alert('تم نسخ رقم الهاتف: ' + txt);
     }
 
-    async function banUserFromReport(handle) {
-      const reason = prompt(`هل تريد حظر صاحب القطعة ${handle} ومسح كل معروضاته من التطبيق؟`, 'إعلان ساخر / محتوى مضلل');
+    async function promptBanUser(handle, phoneNumber = '') {
+      const display = phoneNumber ? `${handle} (${phoneNumber})` : handle;
+      const reason = prompt(`اكتب سبب حظر ${display}:`, 'مخالفة معايير سواب / إعلان غير حقيقي');
       if (!reason) return;
-      banUser(handle, reason);
+      banUser(handle, reason, phoneNumber);
     }
 
-    async function banUser(handle, reason) {
+    async function banUserFromReport(handle, phoneNumber = '') {
+      const display = phoneNumber ? `${handle} (${phoneNumber})` : handle;
+      const reason = prompt(`هل تريد حظر صاحب القطعة ${display} ومسح كل معروضاته من التطبيق؟`, 'إعلان ساخر / محتوى مضلل');
+      if (!reason) return;
+      banUser(handle, reason, phoneNumber);
+    }
+
+    async function banCustomInput() {
+      const input = prompt('أدخل رقم هاتف المستخدم (مثال: 01012345678) أو هاندل حسابه:');
+      if (!input || !input.trim()) return;
+      const reason = prompt(`سبب حظر ${input.trim()}:`, 'حظر إداري مباشر');
+      if (!reason) return;
+      banUser(input.trim(), reason, input.trim());
+    }
+
+    async function banUser(handle, reason, phoneNumber = '') {
       try {
         const res = await fetch('/api/admin/ban-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-admin-pin': activePin },
-          body: JSON.stringify({ handle, reason }),
+          body: JSON.stringify({ handle, phoneNumber, reason }),
         });
         const d = await res.json();
         alert(d.message || 'تم حظر المستخدم');
@@ -461,13 +544,14 @@
       }
     }
 
-    async function unbanUser(handle) {
-      if (!confirm(`هل تريد فك الحظر عن ${handle}؟`)) return;
+    async function unbanUser(handle, phoneNumber = '') {
+      const display = phoneNumber ? `${handle} (${phoneNumber})` : handle;
+      if (!confirm(`هل تريد فك الحظر عن ${display}؟`)) return;
       try {
         const res = await fetch('/api/admin/unban-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-admin-pin': activePin },
-          body: JSON.stringify({ handle }),
+          body: JSON.stringify({ handle, phoneNumber }),
         });
         const d = await res.json();
         alert(d.message || 'تم فك الحظر');
