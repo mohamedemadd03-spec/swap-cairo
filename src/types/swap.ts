@@ -41,6 +41,11 @@ export interface Garment {
     tag?: string;
   };
   isLiveCameraVerified?: boolean;
+  lat?: number;
+  lng?: number;
+  internalScore?: number;
+  positiveSignals?: number;
+  negativeSignals?: number;
   authenticityTier?: AuthenticityTier;
   hasOriginalBox?: boolean;
   boxCondition?: 'mint' | 'damaged' | 'replacement' | 'no_box';
@@ -63,6 +68,11 @@ export interface WardrobeItem {
   offerStatus?: string;
   condition?: string;
   description?: string;
+  lat?: number;
+  lng?: number;
+  internalScore?: number;
+  positiveSignals?: number;
+  negativeSignals?: number;
   angles?: {
     front: string;
     back: string;

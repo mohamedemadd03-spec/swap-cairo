@@ -42,6 +42,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [hapticsEnabled, setHapticsEnabled] = useState(() => hapticEngine.getEnabled());
   const [activeSection, setActiveSection] = useState<'hubs' | 'receipts' | 'watchlist' | 'charter'>('hubs');
   const { language, setLanguage, toggleLanguage, t } = useLanguage();
+  const isAr = language === 'ar';
 
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.photoURL || '');
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -114,7 +115,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {/* Profile Header */}
         <section className="flex items-center justify-between pt-2">
           <h1 className="font-display font-bold text-xl uppercase tracking-tight text-white">
-            البروفايل الشخصي
+            {isAr ? 'البروفايل الشخصي' : 'My Profile'}
           </h1>
           <span className="px-2.5 py-0.5 bg-[#caf300]/15 text-[#caf300] font-mono font-bold text-[10.5px] uppercase rounded-full border border-[#caf300]/30">
             {t('level')} {rankInfo.level} • {rankInfo.currentPoints} {t('pts')}
@@ -124,7 +125,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {/* User Card + Interactive Photo Upload */}
         <div className="p-3.5 rounded-xl bg-[#201f21] border border-[#26262e] flex flex-col gap-3.5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()} title="اضغط لتغيير الصورة الشخصية">
+            <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()} title={isAr ? 'اضغط لتغيير الصورة الشخصية' : 'Tap to change avatar'}>
               <img
                 src={
                   avatarUrl ||
@@ -137,7 +138,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <button
                 type="button"
                 className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#caf300] text-[#0c0b0e] flex items-center justify-center border-2 border-[#131315] shadow-md hover:scale-110 transition-transform"
-                title="تغيير صورتك"
+                title={isAr ? 'تغيير صورتك' : 'Change photo'}
               >
                 <span className="material-symbols-outlined text-[13px] font-bold">photo_camera</span>
               </button>
@@ -156,7 +157,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   {currentUser?.displayName || currentUser?.handle || '@cairo_swapper'}
                 </span>
                 <span className="px-1.5 py-0.2 bg-[#caf300] text-[#171e00] font-mono text-[9.5px] font-bold rounded">
-                  {currentUser?.phoneNumber ? 'رقم موثق 🇪🇬' : 'موثق'}
+                  {currentUser?.phoneNumber ? (isAr ? 'رقم موثق 🇪🇬' : 'Verified Phone 🇪🇬') : (isAr ? 'موثق' : 'Verified')}
                 </span>
               </div>
               <span className="font-mono text-xs text-[#c5c9ac] truncate mt-0.5">
@@ -164,7 +165,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </span>
               <span className="font-mono text-[11px] text-[#caf300] mt-0.5 flex items-center gap-1">
                 <span className="material-symbols-outlined text-[13px]">location_on</span>
-                <span>نقطتك: {currentHub.name}</span>
+                <span>{isAr ? 'نقطتك:' : 'Your Hub:'} {currentHub.name}</span>
               </span>
             </div>
           </div>
@@ -173,10 +174,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div className="p-2.5 rounded-lg bg-[#131315] border border-white/5 flex flex-col gap-1.5">
             <div className="flex items-center justify-between font-mono text-[10px]">
               <span className="text-[#caf300] font-bold uppercase">
-                {rankInfo.currentTier.titleAr} (المستوى {rankInfo.level})
+                {isAr ? rankInfo.currentTier.titleAr : rankInfo.currentTier.titleEn} ({isAr ? 'المستوى' : 'Level'} {rankInfo.level})
               </span>
               <span className="text-[#c5c9ac]">
-                {rankInfo.nextTier ? `${rankInfo.pointsToNext} نقطة للمستوى التالي` : 'أعلى تصنيف'}
+                {rankInfo.nextTier ? (isAr ? `${rankInfo.pointsToNext} نقطة للمستوى التالي` : `${rankInfo.pointsToNext} pts to next level`) : (isAr ? 'أعلى تصنيف' : 'Top Rank')}
               </span>
             </div>
             <div className="w-full h-2 rounded-full bg-[#201f21] overflow-hidden">
@@ -186,26 +187,26 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               />
             </div>
             <span className="font-mono text-[9.5px] text-[#8f9378]">
-              ⚡ {rankInfo.currentTier.perkAr}
+              ⚡ {isAr ? rankInfo.currentTier.perkAr : rankInfo.currentTier.perkEn}
             </span>
           </div>
 
           {/* Environmental & Financial Impact Bento */}
           <div className="grid grid-cols-3 gap-2 border-t border-white/5 pt-3 text-center font-mono">
             <div className="p-2 bg-[#1c1b1d] rounded-lg border border-white/5">
-              <span className="text-[10px] text-[#c5c9ac] uppercase block">التبادلات</span>
+              <span className="text-[10px] text-[#c5c9ac] uppercase block">{isAr ? 'التبادلات' : 'Swaps'}</span>
               <span className="text-base font-bold text-white">{completedSwapsCount}</span>
               <span className="text-[9px] text-[#caf300] block">
-                {completedSwapsCount > 0 ? '★ 5.0' : 'جديد'}
+                {completedSwapsCount > 0 ? '★ 5.0' : (isAr ? 'جديد' : 'New')}
               </span>
             </div>
             <div className="p-2 bg-[#1c1b1d] rounded-lg border border-white/5">
-              <span className="text-[10px] text-[#c5c9ac] uppercase block">نقاط الثقة</span>
+              <span className="text-[10px] text-[#c5c9ac] uppercase block">{isAr ? 'نقاط الثقة' : 'Trust Points'}</span>
               <span className="text-base font-bold text-[#caf300]">{userTrustPoints}</span>
-              <span className="text-[9px] text-[#c5c9ac] block">+50 كل مقابلة</span>
+              <span className="text-[9px] text-[#c5c9ac] block">{isAr ? '+50 كل مقابلة' : '+50 per meet'}</span>
             </div>
             <div className="p-2 bg-[#1c1b1d] rounded-lg border border-white/5">
-              <span className="text-[10px] text-[#c5c9ac] uppercase block">وفرت</span>
+              <span className="text-[10px] text-[#c5c9ac] uppercase block">{isAr ? 'وفرت' : 'Saved'}</span>
               <span className="text-base font-bold text-white">
                 {totalSavedAmount && totalSavedAmount > 0
                   ? totalSavedAmount >= 1000
@@ -213,7 +214,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     : `${totalSavedAmount}`
                   : '0'}
               </span>
-              <span className="text-[9px] text-[#c5c9ac] block">جنيه مقارنة بالسوق</span>
+              <span className="text-[9px] text-[#c5c9ac] block">{isAr ? 'جنيه مقارنة بالسوق' : 'EGP vs retail'}</span>
             </div>
           </div>
         </div>
@@ -294,7 +295,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <section className="flex flex-col gap-2 font-mono animate-in fade-in">
             {completedOffers.length === 0 ? (
               <div className="p-6 rounded-xl bg-[#201f21] border border-[#26262e] text-center text-xs text-[#c5c9ac]">
-                لا توجد إيصالات هاندشيك مسجلة بعد. أكمل مقابلة تبادل لتسجيل أول إيصال رسمي هنا.
+                {isAr
+                  ? 'لا توجد إيصالات هاندشيك مسجلة بعد. أكمل مقابلة تبادل لتسجيل أول إيصال رسمي هنا.'
+                  : 'No handshake receipts recorded yet. Complete an in-person barter to log your first official receipt here.'}
               </div>
             ) : (
               completedOffers.map((offer) => (
@@ -306,12 +309,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     <span className="text-[#caf300] font-bold uppercase flex items-center gap-1">
                       <span className="material-symbols-outlined text-[13px]">handshake</span>
                       <span>
-                        {offer.status === 'completed' ? 'هاندشيك موثق' : 'صفقة مؤكدة'} // #
-                        {offer.securityPassCode || 'SWP-7740'}
+                        {offer.status === 'completed'
+                          ? (isAr ? 'هاندشيك موثق' : 'Verified Handshake')
+                          : (isAr ? 'صفقة مؤكدة' : 'Confirmed Deal')}{' '}
+                        // #{offer.securityPassCode || 'SWP-7740'}
                       </span>
                     </span>
                     <span className="px-2 py-0.5 rounded bg-[#caf300]/15 text-[#caf300] font-bold">
-                      +50 نقطة
+                      {isAr ? '+50 نقطة' : '+50 Pts'}
                     </span>
                   </div>
 
@@ -324,7 +329,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       />
                       <div className="min-w-0">
                         <span className="text-[8.5px] text-[#8f9378] uppercase block">
-                          الطرف الراسل
+                          {isAr ? 'الطرف الراسل' : 'Sender Item'}
                         </span>
                         <span className="font-sans text-xs font-bold text-white truncate block">
                           {offer.yourItem.title}
@@ -340,7 +345,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       />
                       <div className="min-w-0">
                         <span className="text-[8.5px] text-[#caf300] uppercase block font-bold">
-                          الطرف المستلم
+                          {isAr ? 'الطرف المستلم' : 'Receiver Item'}
                         </span>
                         <span className="font-sans text-xs font-bold text-white truncate block">
                           {offer.theirItem.title}
@@ -365,12 +370,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       </div>
                     </div>
                     <span className="px-2 py-0.5 rounded bg-[#caf300]/20 text-[#caf300] font-mono text-[9px] font-bold uppercase shrink-0">
-                      +50 نقطة
+                      {isAr ? '+50 نقطة' : '+50 Pts'}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-[9.5px] text-[#c5c9ac]">
-                    <span>الطرف الآخر: @{offer.partner.handle}</span>
+                    <span>{isAr ? 'الطرف الآخر:' : 'Partner:'} @{offer.partner.handle}</span>
                     <span>{offer.hubLocation || currentHub.name}</span>
                   </div>
                 </div>
@@ -385,8 +390,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             {/* Partner Cafés, Vintage Stores & Safe Meetup Spots */}
             <section className="p-3 rounded-xl bg-[#201f21] border border-[#26262e] flex flex-col gap-2 shadow-sm">
               <div className="flex items-center justify-between font-mono text-[11px]">
-                <span className="text-white font-bold uppercase">Partner Meetup Spots</span>
-                <span className="text-[#caf300] font-semibold">{currentHub.activeSwappers} Nearby</span>
+                <span className="text-white font-bold uppercase">{isAr ? 'نقاط ومقاهي التبادل المعتمدة' : 'Partner Meetup Spots'}</span>
+                <span className="text-[#caf300] font-semibold">{currentHub.activeSwappers} {isAr ? 'متواجدين حالياً' : 'Nearby'}</span>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -425,7 +430,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <section className="flex flex-col gap-2 font-mono animate-in fade-in">
             {stashedGarments.length === 0 ? (
               <div className="p-6 rounded-xl bg-[#201f21] border border-[#26262e] text-center text-xs text-[#c5c9ac]">
-                No saved garments yet. Tap the bookmark icon in Discover to save pieces here.
+                {isAr
+                  ? 'لا توجد قطع محفوظة بعد. اضغط على علامة الحفظ في الاستكشاف لحفظ القطع هنا.'
+                  : 'No saved garments yet. Tap the bookmark icon in Discover to save pieces here.'}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
@@ -453,33 +460,39 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </section>
         )}
 
-        {/* SECTION 3: LEGAL POLICIES & BALANCED AI CHARTER (Always visible when selected) */}
+        {/* SECTION 3: LEGAL POLICIES & BALANCED AI CHARTER */}
         {activeSection === 'charter' && (
           <section className="p-3 rounded-xl bg-[#201f21] border border-[#26262e] flex flex-col gap-2 shadow-sm animate-in fade-in font-sans text-xs text-[#c5c9ac]">
             <div className="p-2.5 rounded-lg bg-[#131315] border border-white/5">
               <span className="font-mono text-[10px] text-[#caf300] font-bold uppercase block mb-0.5">
-                1. Balanced &amp; Measured AI Moderation
+                {isAr ? '1. رقابة ذكية ومتوازنة' : '1. Balanced & Measured AI Moderation'}
               </span>
               <p className="text-[11px] leading-relaxed">
-                Our AI assistant auto-fills garment specs and blocks only strictly prohibited content (NSFW imagery, non-clothing objects, or unwearably trashed rags). Authentic vintage fade, natural lighting, and normal wear are welcomed.
+                {isAr
+                  ? 'مساعد الذكاء الاصطناعي يقوم بملء مواصفات القطعة تلقائياً ويحظر فقط المحتوى غير اللائق أو الأشياء غير الملبوسة. التعتيق الفينتدج الطبيعي مرحب به بالكامل.'
+                  : 'Our AI assistant auto-fills garment specs and blocks only strictly prohibited content (NSFW imagery, non-clothing objects, or unwearably trashed rags). Authentic vintage fade, natural lighting, and normal wear are welcomed.'}
               </p>
             </div>
 
             <div className="p-2.5 rounded-lg bg-[#131315] border border-white/5">
               <span className="font-mono text-[10px] text-[#caf300] font-bold uppercase block mb-0.5">
-                2. In-Person Inspection &amp; Zero-Penalty Cancellation
+                {isAr ? '2. فحص شخصي وإلغاء بدون عقوبات' : '2. In-Person Inspection & Zero-Penalty Cancellation'}
               </span>
               <p className="text-[11px] leading-relaxed">
-                All trades are non-binding until both swappers inspect the physical garments in person and scan the QR Handshake. Either party may cancel if a spot is too far or an item does not match its photos, and locked closet items immediately return to Available.
+                {isAr
+                  ? 'جميع الصفقات غير ملزمة حتى يقابل السوابرز بعضهما وجهاً لوجه ويفحصا الملابس ويفعلا الـ QR Handshake. يمكن لأي طرف الإلغاء إذا كانت القطعة غير مطابقة.'
+                  : 'All trades are non-binding until both swappers inspect the physical garments in person and scan the QR Handshake. Either party may cancel if a spot is too far or an item does not match its photos, and locked closet items immediately return to Available.'}
               </p>
             </div>
 
             <div className="p-2.5 rounded-lg bg-[#131315] border border-white/5">
               <span className="font-mono text-[10px] text-[#caf300] font-bold uppercase block mb-0.5">
-                3. Public Meetup Safety &amp; GPS Privacy
+                {isAr ? '3. أمان اللقاءات العامة وخصوصية الـ GPS' : '3. Public Meetup Safety & GPS Privacy'}
               </span>
               <p className="text-[11px] leading-relaxed">
-                Meet only in public partner cafés, hubs, or well-lit stations. Live GPS Radar pins are shared strictly on-demand inside your active trade chat and are never broadcast publicly.
+                {isAr
+                  ? 'اللقاءات تتم فقط في المقاهي ونقاط التبادل الشريكة المضاءة. موقع الـ GPS المباشر لا يشارك إلا أثناء المقابلة النشطة فقط لحمايتك.'
+                  : 'Meet only in public partner cafés, hubs, or well-lit stations. Live GPS Radar pins are shared strictly on-demand inside your active trade chat and are never broadcast publicly.'}
               </p>
             </div>
           </section>

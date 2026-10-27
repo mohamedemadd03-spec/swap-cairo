@@ -410,44 +410,8 @@ export const SEED_ARCHIVE_WARDROBE: WardrobeItem[] = [
 // Production default: fresh user starts with an empty closet ready to upload their own pieces
 export const INITIAL_WARDROBE: WardrobeItem[] = [];
 
-export const INITIAL_WISHLIST: WishlistItem[] = [
-  {
-    id: 'wish-1',
-    title: "Arc'teryx Alpha SV Shell",
-    priority: 'Priority Wish',
-    preferredSize: 'Size M / Black or Volt',
-    notes: 'Looking for waterproof 3-layer Gore-Tex for winter rains.',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDdA2NzcJlkEgkgxCFW5KZH2qpk6b8pX63JwtsR9Q5buQef9T5Xkw_werZLj_RLl5WAPInWSH_YoLCjQe2C0893qqQ6cukKE_66WVjG9Fs2rFQIHf5D9-DKNAjUl1WpwkqVHfh7wZ07x62tIOWY6K1CvD1XIkGMN-EZqZzV2I-aMOxk4xvcg4-7UB6WyxeEJXl5tCr25zQtCsdGAhpiqgqbQd1781xVTqxeVdF0DoLI_J_e0lmIFvvp',
-    matchesNearby: 2,
-  },
-  {
-    id: 'wish-2',
-    title: 'Supreme Box Logo Hooded',
-    priority: 'Streetwear Grail',
-    preferredSize: 'Size L • 3 potential matches nearby',
-    notes: 'Heather grey or navy colorway preferred.',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBgMnX7IS-ZhUhTa3qVSwC_DxecerYC6uKn8eecvrxsVrHzGJRm9EYFNqYPpiNP_iX_aTh89uwWYPEiTrCM_Dyy3RLxct2Kz0TmJtsumgCtGEwrJnh1UoL762QOC7OzpzNJ_BCEIXEuT-g-S8gYJJhEGeV5UbARy49j_-eDoHjRDZEFjd-l5pGarb_ooNXCF9JvdwP0oxM5YLEZATAhNY0SDj_mEd_vBbGcE65ocH_tBr1XimM3zZil',
-    matchesNearby: 3,
-  },
-  {
-    id: 'wish-3',
-    title: 'Prada Monolith Combat Boots',
-    priority: 'High Priority',
-    preferredSize: 'Size EU 43 • Leather Pouch Spec',
-    notes: 'Black brushed rois leather with detachable nylon pouch.',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB4Sh5BVUzlZpdCdOIf09twnLMkG9oUzvyXGSDfZSZny_NiB2m6xDZe-nhN4ptrQCNumL1MZRMGeFHbhqdrCLDsmVccRB0ReqFfHXK2WbcXCIYqIy9b_rXToHZmheLpAmwKnoEqao2TJ4AGj7Zcu_347869lY9VJ50qEZeUAve6S1Y8yrqhmwjrNlup3HPbsvNmv_d73i2-slLmP1tIiMfOicEYmMiG1h_JSXowSIK9e-8Dvxp2Au8p',
-    matchesNearby: 1,
-  },
-  {
-    id: 'wish-4',
-    title: 'Vintage Nike ACG Storm-Fit Parka',
-    priority: 'Seasonal Wish',
-    preferredSize: 'Size L • 90s All Conditions Gear',
-    notes: 'Colorblocked ripstop with technical chest harnesses.',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDV1DQEvXqn7CDpVduQ06_a10pdOzvK6MaJ7WIwsc0qSIDja2RVPjVK8DjhCzuDYKmf5qh3zBE0kANCLmCsRdhsPehXsizZbi_Yxgd4Bet7OWKvsdG1kmZs6M-CxzxirDPBGmj8U6EylraUGk7UlTXKDrwzqbteawK48UqzNR3XFGhGQYXdIqPb0wFaA_paNForJJCk0H93onhTmBMvbvBSERnn36az9aDarl6dudr3aiW92YsQVmVC',
-    matchesNearby: 4,
-  },
-];
+// Production default: fresh user starts with zero items in wishlist
+export const INITIAL_WISHLIST: WishlistItem[] = [];
 
 export const SEED_ARCHIVE_OFFERS: SwapOffer[] = [
   {
@@ -587,63 +551,8 @@ export const ACTIVE_SWAP_OFFERS: SwapOffer[] = [];
 
 export const INITIAL_BUYOUT_ORDERS: BuyoutOrder[] = [];
 
-export const INITIAL_LEADERBOARD: LeaderboardEntry[] = [
-  {
-    rank: 1,
-    handle: '@nour_gorp',
-    name: 'Nour El Din',
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuANDmSjW09uSDnEpk-gIIOPxXUsISVCf3yJcRwHhIaPSOUmsPYBOalveOc2_-F2fNn3oMlf3ysO4IUthkXg5zMeIMCoCuqtIHHtZ9ZZmgH2xB77MLOJTA9L7qeXkDS1lkTfUCSiJ75gO6HwQh-Wm4ihHalh7RDmcUH3zEZ8i11HlTQoDgZxAWYn4N6xi1da5Bs_sbOB4WofzYmC2pPLipYD604O5fBL0nPilswg0iWSMa4H-2G3lVxq',
-    city: 'Maadi, Cairo',
-    co2SavedKg: 48.6,
-    swapsCompleted: 42,
-    buyoutsCompleted: 14,
-    badge: 'TITANIUM CURATOR',
-  },
-  {
-    rank: 2,
-    handle: '@OmarK',
-    name: 'Omar K.',
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD2MFAe-4So2_dAJmiJgs-YBMCxeM0tuGlIUhZaBCAGj6OtjvNBzBxTeDEw0IkUD01Ch13MKQz-1s0YxEnSNUDFE1ETWfW8D6HfJFjSIeTnfpwDuwooxSMzZMlWFiNdS3tQR700BGzvc5Q_9bKYzKwbmU4dNrWVDdfdA9ywVcNGg9Cfj2eOCknJ7DrXzw5sI3BHAo4rkZBHRwf3BgsnqpV7z8HuALJE29dGCR44RHfsUxD5DhNRarZG',
-    city: 'Degla, Cairo',
-    co2SavedKg: 39.2,
-    swapsCompleted: 38,
-    buyoutsCompleted: 9,
-    badge: 'ARCHIVE VANGUARD',
-  },
-  {
-    rank: 3,
-    handle: '@youssef_fits',
-    name: 'Youssef M.',
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBLXROTZvw0wuqH3ZU67n7HuKP7rPtDm3_DzOjQsDtTivuRNhOyWiKs0oCBICpPHdh3gPHIYs8thUX8FkiYeoEXJj6k9ZFtIp3_EkuEGeuQi5wn6ZSrdshK0WL827ndNmdbKzoEY2THaxvzWVr-GOy5Ou27VXjP3x5GNR96NtBtgCLuKlewJnMgSmRJX9RErLBxF6c8SXNwrfQovRWaG2p7lJl_OhXTIYWFf9rZGsVdR9B702oD2uH-',
-    city: 'Cairo / Maadi',
-    co2SavedKg: 24.8,
-    swapsCompleted: 12,
-    buyoutsCompleted: 4,
-    badge: 'PRO SWAPPER',
-  },
-  {
-    rank: 4,
-    handle: '@salma_archive',
-    name: 'Salma T.',
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCo9t9gIy30s9aloHDqMRspWP6nW3OhgSlXUay_rA-mj3qkhP6KZ8W3vGzN7CCMr2ZoICKOtRHxqqs2qj5k_5-QOkYtitS_3qaf7mlh4nTymGf6_F90Cq9el2SKohoAg36EYPQTl_TrBR5as1v6Z1Hs68dK-Mq1Ku5-upbmkPxZ3XW-8q9sTAw3g5T5HYTfTNm33Dw_vS0vbGAeW0p8cAlhqoZ7sattz2tatf2GbPJtfbinaanYVtTs',
-    city: 'Zamalek, Cairo',
-    co2SavedKg: 19.4,
-    swapsCompleted: 29,
-    buyoutsCompleted: 6,
-    badge: 'VINTAGE SPECIALIST',
-  },
-  {
-    rank: 5,
-    handle: '@ny_archivist',
-    name: 'Miles R.',
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCp6VsTXSbBB5HJBgfGET4fszZO7SWAUu_w5HCGJKmIuTyVG2Dwf-gVv6cBSW8i4rEBtGErPk5nRoeGC2TkYYCcXucXgo0He1WNpgJ6iG03kfsVg6vthU4EV75O3CnxyrEz3bfKEw8U2sB3erYc1sX5Xv4Fymlu5VPKen6ZEM4m8cY_bwlz83q7-gW2djpGrWmWHNKEV-THo-x2kgrEN0FLY-9XPDIxcLRyU2GWlEAZ9Ygotctn6Iol',
-    city: 'SoHo, NYC',
-    co2SavedKg: 16.2,
-    swapsCompleted: 18,
-    buyoutsCompleted: 11,
-    badge: 'SOHO COLLECTOR',
-  },
-];
+// Production default: fresh user starts with zero mock leaderboard entries
+export const INITIAL_LEADERBOARD: LeaderboardEntry[] = [];
 
 export const HUB_LOCATIONS: HubLocation[] = [
   {

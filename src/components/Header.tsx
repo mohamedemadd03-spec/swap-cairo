@@ -78,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
               <img
                 src={
                   currentUser?.photoURL ||
-                  'https://lh3.googleusercontent.com/aida-public/AB6AXuDiBFlwRfyYNXXzMMHog4cnQQF4aB7aMTx6jmYgc1oqDyInrgqUHMU_dEBicHujxi6YICVBf-I-dChd_1HAp5YJG5jmU24PI08rtPjdiQOxaFyGGJLHPgqfAMdWprP8Z8Ar7uBKcTHyORErqdcBr_XjOMJ_CLTid-_SeoHMjHqi_pkw1dXC3dZWEKid0tRCavzL4tn8mVFj3sIxSjv6TIMzCDbGoHRiZkTwG8vDF1ZxorcBHjzHnUVq'
+                  `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent((currentUser as any)?.handle || currentUser?.displayName || 'swapper')}`
                 }
                 alt="Profile"
                 className="w-full h-full rounded-full object-cover"

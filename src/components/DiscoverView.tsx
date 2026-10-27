@@ -5,13 +5,15 @@ import { BrutalistBurst } from './BrutalistBurst';
 import { useLanguage } from '../i18n/LanguageContext';
 import { UserTasteProfile, rankCairoFeedEngine, loadTasteProfile } from '../services/recommendationEngine';
 import { HUB_LOCATIONS } from '../data/mockData';
-import { calculateHaversineDistanceKm, formatArabicDistance } from '../utils/swapLogic';
+import { calculateHaversineDistanceKm, formatDistance } from '../utils/swapLogic';
+import { useUserLocation } from '../hooks/useUserLocation';
 
 interface DiscoverViewProps {
   garments: Garment[];
   userWardrobe?: WardrobeItem[];
   currentIndex: number;
   currentHub?: HubLocation;
+  onSelectHub?: (hub: HubLocation) => void;
   onOpenAddItem?: () => void;
   onSwipeRight: (garment: Garment) => void;
   onSwipeLeft: (garment: Garment) => void;
@@ -29,7 +31,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   garments,
   userWardrobe = [],
   currentIndex,
-  currentHub,
+  currentHub = HUB_LOCATIONS[0],
+  onSelectHub,
   onOpenAddItem,
   onSwipeRight,
   onSwipeLeft,
@@ -43,6 +46,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   tasteProfile,
 }) => {
   const { language, t } = useLanguage();
+  const isAr = language === 'ar';
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [burstActive, setBurstActive] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'grid'>('card');
@@ -52,6 +56,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const didDragRef = useRef(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // Live HTML5 Geolocation with real meter accuracy
+  const { userCoords, gpsActive, gpsLoading, requestGps } = useUserLocation(
+    currentHub,
+    onSelectHub
+  );
 
   // Session Swiped tracking for non-repeating stream behind the scenes
   const [sessionSwipedIds, setSessionSwipedIds] = useState<Set<string>>(() => new Set());
@@ -77,25 +87,54 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         searchQuery,
         maxDistanceKm: maxRadiusKm,
         sessionSwipedIds,
+        userCoords: userCoords || (currentHub?.lat && currentHub?.lng ? { lat: currentHub.lat, lng: currentHub.lng } : undefined),
       }
     );
-  }, [garments, tasteProfile, userWardrobe, selectedCategory, searchQuery, maxRadiusKm, sessionSwipedIds]);
+  }, [garments, tasteProfile, userWardrobe, selectedCategory, searchQuery, maxRadiusKm, sessionSwipedIds, userCoords, currentHub]);
 
   const filteredAndSortedGarments = rankedDeck;
   const displayedDeck = rankedDeck;
 
   const activeIndex = displayedDeck.length > 0 ? currentIndex % displayedDeck.length : 0;
   const activeGarment = displayedDeck[activeIndex];
-  const nextGarment = displayedDeck.length > 1 ? displayedDeck[(activeIndex + 1) % displayedDeck.length] : null;
 
   const flashToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2400);
   };
 
-  const getGarmentRealDistance = (garment: Garment): string => {
-    if (!currentHub) return garment.distance || 'على بعد 300 متر';
+  // Dispatch invisible quality signals to machine ranking backend
+  const sendSilentSignal = (garmentId: string, action: 'like' | 'pass' | 'request_swap') => {
+    fetch(`/api/garments/${encodeURIComponent(garmentId)}/signal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    }).catch(() => {});
+  };
 
+  const getGarmentRealDistance = (garment: Garment): string => {
+    // 1. Exact GPS coordinates if available
+    if (userCoords && garment.lat != null && garment.lng != null) {
+      const distKm = calculateHaversineDistanceKm(
+        userCoords.lat,
+        userCoords.lng,
+        garment.lat,
+        garment.lng
+      );
+      return formatDistance(distKm, language);
+    }
+
+    if (currentHub && garment.lat != null && garment.lng != null && currentHub.lat != null && currentHub.lng != null) {
+      const distKm = calculateHaversineDistanceKm(
+        currentHub.lat,
+        currentHub.lng,
+        garment.lat,
+        garment.lng
+      );
+      return formatDistance(distKm, language);
+    }
+
+    // 2. Hub-matched distance
     const garmentLoc = (garment.owner?.location || garment.city || '').toLowerCase();
     const garmentHub = HUB_LOCATIONS.find(
       (h) =>
@@ -104,8 +143,19 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         h.city.toLowerCase().includes(garmentLoc)
     );
 
+    if (userCoords && garmentHub && garmentHub.lat != null && garmentHub.lng != null) {
+      const distKm = calculateHaversineDistanceKm(
+        userCoords.lat,
+        userCoords.lng,
+        garmentHub.lat,
+        garmentHub.lng
+      );
+      return formatDistance(distKm, language);
+    }
+
     if (
       garmentHub &&
+      currentHub &&
       currentHub.lat != null &&
       currentHub.lng != null &&
       garmentHub.lat != null &&
@@ -117,15 +167,16 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         garmentHub.lat,
         garmentHub.lng
       );
-      return formatArabicDistance(distKm);
+      return formatDistance(distKm, language);
     }
 
-    return garment.distance || 'على بعد 300 متر';
+    return garment.distance || (isAr ? 'على بعد 100 متر' : '100m away');
   };
 
   const handleOpenTradeRequest = (garment: Garment) => {
     triggerHaptic('trade');
     soundFX.playClick();
+    sendSilentSignal(garment.id, 'request_swap');
     if (onRequestSwap) {
       onRequestSwap(garment);
     }
@@ -135,8 +186,18 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     if (!activeGarment) return;
     triggerHaptic('pass');
     soundFX.playClick();
+    sendSilentSignal(activeGarment.id, 'pass');
     setSessionSwipedIds((prev) => new Set(prev).add(activeGarment.id));
     onSwipeLeft(activeGarment);
+  };
+
+  const handleLike = () => {
+    if (!activeGarment) return;
+    triggerHaptic('light');
+    soundFX.playClick();
+    sendSilentSignal(activeGarment.id, 'like');
+    setSessionSwipedIds((prev) => new Set(prev).add(activeGarment.id));
+    onSwipeRight(activeGarment);
   };
 
   const handleSave = () => {
@@ -144,7 +205,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     triggerHaptic('click');
     soundFX.playClick();
     onToggleBookmark(activeGarment);
-    flashToast(activeGarment.isStashed ? "Removed from Vault Watchlist" : "Saved to your Vault Watchlist");
+    flashToast(
+      activeGarment.isStashed
+        ? (isAr ? 'تمت الإزالة من قائمة المراقبة' : 'Removed from Watchlist')
+        : (isAr ? 'تم الحفظ في قائمة المراقبة' : 'Saved to Watchlist')
+    );
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -169,10 +234,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
     if (!activeGarment) return;
     if (finalDelta > 80) {
-      triggerHaptic('light');
-      soundFX.playClick();
-      setSessionSwipedIds((prev) => new Set(prev).add(activeGarment.id));
-      onSwipeRight(activeGarment);
+      handleLike();
     } else if (finalDelta < -80) {
       handlePass();
     }
@@ -180,12 +242,24 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   const hasActiveFilters = Boolean(searchQuery || selectedCategory !== 'all' || maxRadiusKm < 15);
 
+  const reportOptions = isAr
+    ? [
+        { label: 'مستهلكة (<7.5)', reason: 'حالة رديئة أو مستهلكة' },
+        { label: 'ليست ملابس', reason: 'عنصر غير ملبوسات' },
+        { label: 'محتوى غير لائق', reason: 'محتوى غير آمن' },
+      ]
+    : [
+        { label: 'Worn Out (<7.5)', reason: 'Poor / Worn-Out Condition' },
+        { label: 'Not Clothing', reason: 'Non-Apparel Object' },
+        { label: 'Inappropriate', reason: 'Unsafe Content' },
+      ];
+
   return (
     <main className="flex-1 flex flex-col relative w-full min-h-dvh pt-16 pb-20 bg-[#131315] max-w-md mx-auto">
       <BrutalistBurst active={burstActive} type="swap" onComplete={() => setBurstActive(false)} />
 
       <div className="flex flex-col flex-1 w-full">
-        {/* Clean, High-Speed Discover Header (Edge-to-Edge in Phone Form) */}
+        {/* Clean Discover Header (Edge-to-Edge in Phone Form) */}
         <div className="px-3 pt-2 pb-2 flex items-center justify-between gap-2 border-b border-white/[0.06]">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="w-2 h-2 rounded-full bg-[#caf300] animate-pulse shrink-0" />
@@ -236,7 +310,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 onOpenFilters?.();
               }}
               className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#201f21] hover:bg-[#2a2a2c] text-white border border-white/10 font-mono text-[9.5px] font-bold uppercase transition-colors cursor-pointer shrink-0"
-              title="Open Search & Category Filters"
+              title={isAr ? 'فتح البحث والفلاتر' : 'Open Search & Category Filters'}
             >
               <span className="material-symbols-outlined text-[14px] text-[#caf300]">tune</span>
               <span>{t('filterButton')}</span>
@@ -247,11 +321,46 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           </div>
         </div>
 
+        {/* Real GPS Precision Activation Banner */}
+        {!gpsActive ? (
+          <div className="mx-3 mt-1.5 mb-1 p-2 rounded-xl bg-[#1b1c20] border border-[#caf300]/30 flex items-center justify-between gap-2 shadow-sm">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="material-symbols-outlined text-[#caf300] text-[18px] shrink-0 animate-pulse">
+                my_location
+              </span>
+              <span className="font-mono text-[10.5px] text-white font-semibold truncate">
+                {isAr ? '📍 تفعيل الـ GPS لتحديد الأقرب ليك بدقة بالمتر' : '📍 Enable GPS for exact meter proximity'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                soundFX.playClick();
+                requestGps();
+              }}
+              disabled={gpsLoading}
+              className="px-2.5 py-1 rounded-lg bg-[#caf300] hover:brightness-110 active:scale-95 text-[#171e00] font-mono text-[10px] font-black uppercase tracking-wide shrink-0 transition-all cursor-pointer"
+            >
+              {gpsLoading ? (isAr ? 'جاري التحديد...' : 'Locating...') : (isAr ? 'تفعيل ⚡' : 'Enable ⚡')}
+            </button>
+          </div>
+        ) : (
+          <div className="mx-3 mt-1.5 mb-1 px-3 py-1 rounded-xl bg-[#172010] border border-emerald-500/30 flex items-center justify-between text-emerald-400 font-mono text-[10px]">
+            <span className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-[13px]">near_me</span>
+              <span>{isAr ? '✓ الـ GPS مفعّل (دقة متناهية بالمتر)' : '✓ GPS Active (Exact Meters)'}</span>
+            </span>
+            <span className="text-[9.5px] text-emerald-300 font-bold uppercase truncate max-w-[130px]">
+              {currentHub?.name}
+            </span>
+          </div>
+        )}
+
         {/* Active Filter Removable Banner (Only when filters are active) */}
         {hasActiveFilters && (
-          <div className="my-2 flex items-center justify-between px-3 py-1.5 rounded-xl bg-[#18181a] border border-[#caf300]/40 font-mono text-[10px] animate-in fade-in">
+          <div className="my-1.5 mx-3 flex items-center justify-between px-3 py-1.5 rounded-xl bg-[#18181a] border border-[#caf300]/40 font-mono text-[10px] animate-in fade-in">
             <div className="flex items-center gap-1.5 text-white truncate">
-              <span className="text-[#caf300] font-bold">ACTIVE:</span>
+              <span className="text-[#caf300] font-bold">{isAr ? 'مفلتر:' : 'ACTIVE:'}</span>
               <span className="truncate">
                 {selectedCategory !== 'all' ? selectedCategory.toUpperCase() : ''}
                 {searchQuery ? ` "${searchQuery}"` : ''}
@@ -266,7 +375,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               }}
               className="text-[#caf300] hover:underline font-bold uppercase shrink-0 ml-2 cursor-pointer"
             >
-              Clear ✕
+              {isAr ? 'إلغاء ✕' : 'Clear ✕'}
             </button>
           </div>
         )}
@@ -278,10 +387,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               <span className="material-symbols-outlined text-3xl">checkroom</span>
             </div>
             <h3 className="font-display text-base font-bold text-white uppercase tracking-tight">
-              السوق في انتظار أول قطعة منك! ⚡
+              {isAr ? 'السوق في انتظار أول قطعة منك! ⚡' : 'The market is waiting for your first piece! ⚡'}
             </h3>
             <p className="font-mono text-xs text-[#c5c9ac] mt-2 leading-relaxed">
-              كن أول من يرفع قطعة من دولابه في {currentHub?.name || 'منطقتك'}، وابدأ التبادل الحقيقي مع أقرب سوابرز حواليك!
+              {isAr
+                ? `كن أول من يرفع قطعة من دولابه في ${currentHub?.name || 'منطقتك'}، وابدأ التبادل الحقيقي مع أقرب سوابرز حواليك!`
+                : `Be the first to list a piece from your wardrobe in ${currentHub?.name || 'your area'}, and start swapping with nearby swappers!`
+              }
             </p>
             {onOpenAddItem && (
               <button
@@ -294,7 +406,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 className="mt-5 w-full py-3.5 px-4 rounded-xl bg-[#caf300] text-[#0c0b0e] font-mono text-xs font-black uppercase tracking-wider hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(202,243,0,0.25)]"
               >
                 <span className="material-symbols-outlined text-[18px]">add_circle</span>
-                <span>إضافة أول قطعة لدولابك الآن 👕</span>
+                <span>{isAr ? 'إضافة أول قطعة لدولابك الآن 👕' : 'Add your first piece now 👕'}</span>
               </button>
             )}
             <button
@@ -336,14 +448,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                   {/* Live Touch-Swipe Stamp Overlays */}
                   {dragOffsetX > 35 && (
                     <div className="absolute top-14 left-4 z-30 px-3 py-1 rounded-xl border-2 border-[#caf300] bg-[#131315]/90 text-[#caf300] font-display font-black text-base uppercase tracking-wider -rotate-6 shadow-xl pointer-events-none">
-                      SWAP ⇄
+                      {isAr ? 'تبديل ⇄' : 'SWAP ⇄'}
                     </div>
                   )}
                   {dragOffsetX < -35 && (
                     <div className="absolute top-14 right-4 z-30 px-3 py-1 rounded-xl border-2 border-white/60 bg-[#131315]/90 text-white font-display font-black text-base uppercase tracking-wider rotate-6 shadow-xl pointer-events-none">
-                      SKIP →
+                      {isAr ? 'تخطي →' : 'SKIP →'}
                     </div>
                   )}
+
                   {/* Top Card Micro-HUD: Proximity Pill, Value & Quality Flag */}
                   <div className="relative z-10 p-3 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#131315]/90 border border-[#caf300]/40 backdrop-blur-md">
@@ -356,7 +469,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     <div className="flex items-center gap-1.5">
                       <div className="px-2.5 py-1 rounded-full bg-[#201f21]/90 backdrop-blur-md border border-white/10">
                         <span className="font-mono text-xs text-[#caf300] font-bold">
-                          {activeGarment.estValue} EGP
+                          {activeGarment.estValue} {isAr ? 'ج.م' : 'EGP'}
                         </span>
                       </div>
 
@@ -368,7 +481,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                           soundFX.playClick();
                           setReportMenuOpen(!reportMenuOpen);
                         }}
-                        title="Flag worn-out, non-clothing, or inappropriate listing"
+                        title={isAr ? 'إبلاغ عن قطعة غير لائقة أو رديئة' : 'Flag worn-out or inappropriate listing'}
                         className="w-7 h-7 rounded-full bg-[#131315]/90 hover:bg-red-500/20 text-[#8f9378] hover:text-red-400 border border-white/10 flex items-center justify-center backdrop-blur-md cursor-pointer"
                       >
                         <span className="material-symbols-outlined text-[14px]">flag</span>
@@ -383,7 +496,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                       className="relative z-20 mx-3 p-3 rounded-xl bg-[#131315]/95 border border-red-500/40 backdrop-blur-xl flex flex-col gap-1.5 animate-in fade-in"
                     >
                       <div className="flex items-center justify-between font-mono text-[10px] text-red-400 font-bold uppercase">
-                        <span>🛡️ Report Quality / Safety Issue</span>
+                        <span>🛡️ {isAr ? 'إبلاغ عن مشكلة بالجودة أو الأمان' : 'Report Quality / Safety Issue'}</span>
                         <button
                           type="button"
                           onClick={() => setReportMenuOpen(false)}
@@ -393,11 +506,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                         </button>
                       </div>
                       <div className="grid grid-cols-3 gap-1.5 font-mono text-[9.5px]">
-                        {[
-                          { label: 'Worn Out (<7.5)', reason: 'Poor / Worn-Out Condition' },
-                          { label: 'Not Clothing', reason: 'Non-Apparel Object' },
-                          { label: 'Inappropriate', reason: 'Unsafe Content' },
-                        ].map((opt) => (
+                        {reportOptions.map((opt) => (
                           <button
                             key={opt.reason}
                             type="button"
@@ -405,7 +514,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                               soundFX.playClick();
                               setReportMenuOpen(false);
                               onReportGarment?.(activeGarment, opt.reason);
-                              flashToast(`🛡️ Flagged & hidden: ${opt.reason}`);
+                              flashToast(isAr ? `🛡️ تم الإبلاغ وإخفاء القطعة: ${opt.reason}` : `🛡️ Flagged & hidden: ${opt.reason}`);
                             }}
                             className="py-1.5 px-2 rounded-lg bg-[#201f21] hover:bg-red-500/20 text-white hover:text-red-300 border border-white/10 cursor-pointer font-bold"
                           >
@@ -416,7 +525,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     </div>
                   )}
 
-                  {/* Bottom Content Overlay (Clean, Mobile-Optimized) */}
+                  {/* Bottom Content Overlay */}
                   <div className="relative z-10 p-3.5 flex flex-col gap-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="px-2 py-0.5 rounded bg-[#caf300] text-[#171e00] font-mono text-[10px] font-bold uppercase">
@@ -446,7 +555,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                         <img
                           src={
                             activeGarment.owner.avatarUrl ||
-                            'https://api.dicebear.com/7.x/bottts/svg?seed=' + activeGarment.owner.handle
+                            `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(activeGarment.owner.handle)}`
                           }
                           alt={activeGarment.owner.name}
                           className="w-8 h-8 rounded-full object-cover ring-2 ring-[#caf300]/60 shrink-0"
@@ -462,7 +571,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                           </div>
                           <span className="font-mono text-[10px] text-[#c5c9ac] truncate flex items-center gap-1 mt-0.5">
                             <span className="material-symbols-outlined text-[12px] text-[#caf300]">location_on</span>
-                            <span>{activeGarment.owner.location || activeGarment.city || currentHub?.name || 'مدينة السلام'}</span>
+                            <span>{activeGarment.owner.location || activeGarment.city || currentHub?.name || (isAr ? 'مدينة السلام' : 'Cairo')}</span>
                             <span>•</span>
                             <span className="text-[#caf300] font-bold">{getGarmentRealDistance(activeGarment)}</span>
                           </span>
@@ -477,12 +586,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                               <span>{activeGarment.owner.rating ? Number(activeGarment.owner.rating).toFixed(1) : '5.0'}</span>
                             </div>
                             <span className="text-[#8f9378] text-[9.5px]">
-                              ({activeGarment.owner.swapCount} تبديل)
+                              ({activeGarment.owner.swapCount} {isAr ? 'تبديل' : 'swaps'})
                             </span>
                           </>
                         ) : (
                           <span className="text-[#8f9378] text-[9.5px] bg-white/[0.04] border border-white/5 px-2 py-0.5 rounded">
-                            سوابر جديد ⚡
+                            {isAr ? 'سوابر جديد ⚡' : 'New Swapper ⚡'}
                           </span>
                         )}
                       </div>
@@ -490,11 +599,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                   </div>
                 </div>
 
-                {/* Integrated Mobile Action Bar (Spans full phone width cleanly) */}
+                {/* Integrated Mobile Action Bar */}
                 <div className="w-full px-3 py-2.5 bg-[#131315] flex items-center justify-center gap-3">
                   <button
                     onClick={handlePass}
-                    aria-label="Next Item"
+                    aria-label={t('skip')}
                     className="h-12 w-12 rounded-full bg-[#201f21] text-[#c6c6c7] hover:text-white active:scale-90 flex items-center justify-center transition-all border border-white/10 cursor-pointer shrink-0"
                   >
                     <span className="material-symbols-outlined text-[20px]">skip_next</span>
@@ -512,7 +621,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
                   <button
                     onClick={handleSave}
-                    aria-label="Save to Watchlist"
+                    aria-label={t('saveToVault')}
                     className={`h-12 w-12 rounded-full bg-[#201f21] active:scale-90 flex items-center justify-center transition-all border border-white/10 cursor-pointer shrink-0 ${
                       activeGarment.isStashed ? 'text-[#caf300]' : 'text-[#c6c6c7] hover:text-white'
                     }`}
@@ -547,14 +656,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                         <span>{getGarmentRealDistance(garment)}</span>
                       </div>
                       <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-[#131315]/80 backdrop-blur-md text-white font-mono text-[10px] font-bold">
-                        {garment.estValue} EGP
+                        {garment.estValue} {isAr ? 'ج.م' : 'EGP'}
                       </div>
                     </div>
 
                     <div className="p-3 flex flex-col flex-1 justify-between gap-2">
                       <div>
                         <span className="font-mono text-[9px] uppercase tracking-wider text-[#c5c9ac] block">
-                          {garment.brand} • Size {garment.size}
+                          {garment.brand} • {t('size')} {garment.size}
                         </span>
                         <h4
                           onClick={() => onOpenItemDetail?.(garment)}
@@ -565,7 +674,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                         <p className="font-mono text-[10px] text-[#caf300] truncate mt-0.5 flex items-center gap-1">
                           <span>{garment.owner.handle}</span>
                           <span className="text-[#8f9378]">•</span>
-                          <span className="text-[#c5c9ac]">{garment.owner.location || garment.city || 'القاهرة'}</span>
+                          <span className="text-[#c5c9ac]">{garment.owner.location || garment.city || (isAr ? 'القاهرة' : 'Cairo')}</span>
                         </p>
                       </div>
 
@@ -575,7 +684,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                         className="w-full py-2 rounded-lg bg-[#caf300] text-[#171e00] font-mono text-[11px] font-bold uppercase tracking-wide flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-sm"
                       >
                         <span className="material-symbols-outlined text-[14px]">swap_horiz</span>
-                        <span>Request Swap</span>
+                        <span>{t('requestSwap')}</span>
                       </button>
                     </div>
                   </div>

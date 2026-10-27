@@ -151,18 +151,27 @@ export function calculateHaversineDistanceKm(lat1: number, lon1: number, lat2: n
 }
 
 /**
- * Formats distance in Arabic according to proximity (meters vs km)
- * e.g. "على بعد 300 متر" or "على بعد 1.8 كم"
+ * Formats distance in Arabic or English according to proximity (exact meters vs km)
+ * e.g. "على بعد 100 متر" / "100m away", or "على بعد 1.8 كم" / "1.8 km away"
  */
-export function formatArabicDistance(distKm: number): string {
-  if (isNaN(distKm) || distKm <= 0.4) {
-    return 'على بعد 300 متر';
+export function formatDistance(distKm: number, language: 'ar' | 'en' = 'ar'): string {
+  const isAr = language === 'ar';
+  if (isNaN(distKm) || distKm <= 0.05) {
+    return isAr ? 'على بعد 50 متر' : '50m away';
   }
   if (distKm < 1.0) {
-    const meters = Math.round(distKm * 1000);
-    return `على بعد ${meters} متر`;
+    const meters = Math.max(50, Math.round((distKm * 1000) / 10) * 10);
+    return isAr ? `على بعد ${meters} متر` : `${meters}m away`;
   }
-  return `على بعد ${distKm.toFixed(1)} كم`;
+  return isAr ? `على بعد ${distKm.toFixed(1)} كم` : `${distKm.toFixed(1)} km away`;
+}
+
+/**
+ * Formats distance in Arabic according to proximity (meters vs km)
+ * e.g. "على بعد 100 متر" or "على بعد 1.8 كم"
+ */
+export function formatArabicDistance(distKm: number): string {
+  return formatDistance(distKm, 'ar');
 }
 
 

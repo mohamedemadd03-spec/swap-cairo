@@ -1,4 +1,5 @@
 import { Garment, WardrobeItem } from '../types/swap';
+import { calculateHaversineDistanceKm } from '../utils/swapLogic';
 
 export type StreetwearArchetypeKey =
   | 'GORPCORE'
@@ -477,6 +478,7 @@ export function rankCairoFeedEngine(
     searchQuery?: string;
     maxDistanceKm?: number;
     sessionSwipedIds?: Set<string>;
+    userCoords?: { lat: number; lng: number };
   }
 ): {
   rankedDeck: Garment[];
@@ -494,6 +496,7 @@ export function rankCairoFeedEngine(
     searchQuery = '',
     maxDistanceKm = 15,
     sessionSwipedIds = new Set<string>(),
+    userCoords,
   } = options || {};
 
   // 1. Filter out invalid/traded items and apply active filters
@@ -501,7 +504,10 @@ export function rankCairoFeedEngine(
     if (g.isTraded) return false;
 
     // Proximity
-    const km = parseDistanceNum(g.distance);
+    let km = parseDistanceNum(g.distance);
+    if (userCoords && g.lat != null && g.lng != null) {
+      km = calculateHaversineDistanceKm(userCoords.lat, userCoords.lng, g.lat, g.lng);
+    }
     if (km > maxDistanceKm) return false;
 
     // Category filter
@@ -532,14 +538,33 @@ export function rankCairoFeedEngine(
   // If strict radius filter yields 0 items, expand radius automatically so closest available items in adjacent areas show
   const candidatePool = eligible.length > 0 ? eligible : garments.filter((g) => !g.isTraded);
 
-  // 2. Score each candidate item across all vectors (Taste, Proximity, Rating, Synergy)
+  // 2. Score each candidate item across all vectors (Taste, Proximity, Rating, Synergy, Silent Quality)
   const scoredItems = candidatePool.map((garment) => {
     const tasteScore = calculateGarmentTasteMatch(garment, profile);
     const { synergyScore } = calculateClosetSynergyScore(garment, wardrobe);
-    const distKm = parseDistanceNum(garment.distance);
+    
+    let distKm = parseDistanceNum(garment.distance);
+    if (userCoords && garment.lat != null && garment.lng != null) {
+      distKm = calculateHaversineDistanceKm(userCoords.lat, userCoords.lng, garment.lat, garment.lng);
+    }
 
-    // Proximity boost (closer items get bonus up to 25 pts)
-    const proximityScore = Math.max(0, 25 - distKm * 1.2);
+    // Dynamic Proximity boost:
+    // If friend/neighbor is within 200m (e.g. 100 meters away), massive proximity bonus (+35 pts)!
+    let proximityScore = 0;
+    if (distKm <= 0.2) {
+      proximityScore = 35;
+    } else if (distKm <= 1.0) {
+      proximityScore = 28;
+    } else {
+      proximityScore = Math.max(0, 25 - distKm * 1.2);
+    }
+
+    // Silent Internal Community Acceptance & Photo Quality (Stored internally, not shown to users)
+    const pos = garment.positiveSignals || 0;
+    const neg = garment.negativeSignals || 0;
+    const baseQuality = (garment.internalScore != null ? garment.internalScore : 50) / 10;
+    const acceptanceSignal = Math.max(-10, Math.min(15, pos * 2.5 - neg * 1.2));
+    const silentMachineScore = baseQuality + acceptanceSignal;
 
     // Owner credibility & rating boost (5.0 rating & active swaps)
     const ratingScore = Math.max(0, ((garment.owner?.rating || 5.0) - 4.0) * 10);
@@ -549,12 +574,13 @@ export function rankCairoFeedEngine(
     const jitter = (hashString(garment.id + (profile.totalSwipes % 5).toString()) % 7) - 3;
 
     // Composite ranking formula:
-    // Taste affinity (40%) + Closet Synergy (25%) + Proximity (25%) + Rating & Popularity (10%) + Jitter
+    // Taste affinity (40%) + Proximity (25%) + Closet Synergy (20%) + Silent Acceptance/Quality (10%) + Rating & Swaps (5%) + Jitter
     const compositeScore =
       tasteScore * 0.40 +
-      synergyScore * 0.25 +
       proximityScore * 0.25 +
-      (ratingScore + swapPopularityScore) * 0.10 +
+      synergyScore * 0.20 +
+      silentMachineScore * 0.10 +
+      (ratingScore + swapPopularityScore) * 0.05 +
       jitter;
 
     const isSwipedInSession = sessionSwipedIds.has(garment.id);

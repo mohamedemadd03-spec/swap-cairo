@@ -1070,6 +1070,40 @@ app.post('/api/sync', (req, res) => {
   }
 });
 
+// Silent Community Acceptance & Quality Signal Tracker
+app.post('/api/garments/:id/signal', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { signal } = req.body || {};
+    if (!signal || !['like', 'pass', 'request_swap'].includes(signal)) {
+      return res.status(400).json({ success: false, error: 'Invalid signal type' });
+    }
+
+    const dbState = readServerDb() || {};
+    const garments = dbState.garments || [];
+    const garment = garments.find((g: any) => g.id === id);
+
+    if (!garment) {
+      return res.status(404).json({ success: false, error: 'Garment not found' });
+    }
+
+    const pos = Number(garment.positiveSignals || 0) + (signal === 'like' ? 1 : signal === 'request_swap' ? 3 : 0);
+    const neg = Number(garment.negativeSignals || 0) + (signal === 'pass' ? 1 : 0);
+
+    const baseScore = (garment.isLiveCameraVerified ? 15 : 0) + (garment.angles?.tag ? 10 : 0) + 50;
+    const internalScore = Math.max(5, baseScore + pos * 5 - neg * 3);
+
+    const updatedGarments = garments.map((g: any) =>
+      g.id === id ? { ...g, positiveSignals: pos, negativeSignals: neg, internalScore } : g
+    );
+
+    writeServerDb({ garments: updatedGarments });
+    return res.json({ success: true, internalScore });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Signal recording failed' });
+  }
+});
+
 app.post('/api/reset-demo', (_req, res) => {
   try {
     if (fs.existsSync(DB_FILE)) {

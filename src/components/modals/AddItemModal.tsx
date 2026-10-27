@@ -16,7 +16,8 @@ type PhotoSlot = 'front' | 'tag';
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL', '30', '32', '34', '36', '42', '43', '44'];
 
 export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onAddItem }) => {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const isAr = language === 'ar';
   const [category, setCategory] = useState<GarmentCategory>('tees');
   const [title, setTitle] = useState('');
   const [size, setSize] = useState('L');
@@ -258,6 +259,12 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
     const cleanTitle = title.trim();
     const isLiveCameraVerified = Boolean(frontFromLiveCamera || tagFromLiveCamera);
 
+    let userCoords: { lat: number; lng: number } | undefined;
+    try {
+      const saved = sessionStorage.getItem('swap_gps_coords_v1') || localStorage.getItem('swap_gps_coords_v1');
+      if (saved) userCoords = JSON.parse(saved);
+    } catch {}
+
     const newItem: WardrobeItem = {
       id: `vault-${Date.now()}`,
       title: cleanTitle,
@@ -274,6 +281,8 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
         back: tagPhoto,
         tag: tagPhoto,
       },
+      lat: userCoords?.lat,
+      lng: userCoords?.lng,
       isLiveCameraVerified,
       condition: conditionGrade,
       description: `Authentic ${cleanTitle} (${conditionGrade}). Ready for trade.`,
@@ -491,7 +500,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
               {[
                 { id: 'tees', label: t('catTops') },
                 { id: 'denim', label: t('catDenim') },
-                { id: 'hoodie', label: 'Hoodies' },
+                { id: 'hoodie', label: isAr ? 'هوديز' : 'Hoodies' },
                 { id: 'jacket', label: t('catJackets') },
                 { id: 'shoes', label: t('catShoes') },
               ].map((c) => (
@@ -562,7 +571,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
                   className="w-full h-full bg-[#131315] border border-white/10 px-3 py-2 text-xs font-mono font-bold text-[#caf300] rounded-xl focus:outline-none focus:border-[#caf300]"
                 />
                 <span className="absolute right-3 top-2.5 font-mono text-[10px] text-[#8f9378]">
-                  EGP
+                  {isAr ? 'ج.م' : 'EGP'}
                 </span>
               </div>
             </div>
@@ -570,10 +579,10 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
             {/* Condition Pills */}
             <div className="grid grid-cols-4 gap-1 font-mono text-[9.5px]">
               {[
-                { id: '9.5 / 10 MINT', label: 'Mint' },
-                { id: '8.5 / 10 CLEAN', label: 'Clean' },
-                { id: '7.5 / 10 GOOD', label: 'Good' },
-                { id: 'BELOW_7', label: 'Worn Out' },
+                { id: '9.5 / 10 MINT', label: isAr ? 'ممتازة' : 'Mint' },
+                { id: '8.5 / 10 CLEAN', label: isAr ? 'نظيفة' : 'Clean' },
+                { id: '7.5 / 10 GOOD', label: isAr ? 'جيدة' : 'Good' },
+                { id: 'BELOW_7', label: isAr ? 'مستهلكة' : 'Worn Out' },
               ].map((cond) => {
                 const isSelected = conditionGrade === cond.id;
                 const isWorn = cond.id === 'BELOW_7';

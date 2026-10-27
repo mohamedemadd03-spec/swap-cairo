@@ -402,14 +402,24 @@ export default function App() {
   };
 
   const handleSwipeRight = (garment: Garment) => {
-    // Silent background taste coordination (في الخفاء تماماً من وراء الشاشة)
+    // Silent background taste coordination & machine quality signal
+    fetch(`/api/garments/${encodeURIComponent(garment.id)}/signal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'like' }),
+    }).catch(() => {});
     const updated = recordSwipeAction(tasteProfile, garment, 'like');
     setTasteProfile(updated);
     setCurrentIndex((prev) => prev + 1);
   };
 
   const handleSwipeLeft = (garment: Garment) => {
-    // Silent background taste coordination (في الخفاء تماماً من وراء الشاشة)
+    // Silent background taste coordination & machine quality signal
+    fetch(`/api/garments/${encodeURIComponent(garment.id)}/signal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'pass' }),
+    }).catch(() => {});
     const updated = recordSwipeAction(tasteProfile, garment, 'pass');
     setTasteProfile(updated);
     setCurrentIndex((prev) => prev + 1);
@@ -1274,8 +1284,13 @@ export default function App() {
       size: newItem.size,
       badge: newItem.isLiveCameraVerified ? 'LIVE CAM VERIFIED' : 'JUST LISTED',
       archiveTag: 'LOCAL VAULT',
-      distance: '0.1 km • دولابك الشخصي',
+      distance: '0.1 km',
       city: currentHub.name,
+      lat: newItem.lat || currentHub.lat,
+      lng: newItem.lng || currentHub.lng,
+      internalScore: 65,
+      positiveSignals: 0,
+      negativeSignals: 0,
       imageUrl: newItem.imageUrl,
       angles: newItem.angles,
       isLiveCameraVerified: newItem.isLiveCameraVerified,
@@ -1295,6 +1310,13 @@ export default function App() {
       tags: ['Verified', 'New Upload'],
     };
     setGarments((prev) => [newFeedGarment, ...prev]);
+
+    // Persist to local server database for other users nearby
+    fetch('/api/garments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newFeedGarment),
+    }).catch(() => {});
 
     if (currentUser?.uid) {
       syncWardrobeItemToFirestore(newItem, currentUser.uid);
@@ -1472,6 +1494,7 @@ export default function App() {
           userWardrobe={wardrobe}
           currentIndex={currentIndex}
           currentHub={currentHub}
+          onSelectHub={setCurrentHub}
           onOpenAddItem={() => setIsAddItemOpen(true)}
           onSwipeRight={handleSwipeRight}
           onSwipeLeft={handleSwipeLeft}
