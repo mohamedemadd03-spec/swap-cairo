@@ -1,5 +1,5 @@
-// Comprehensive Haptic Feedback Engine for swap.
-// Combines HTML5 Vibration API with High-Energy Acoustic-Tactile Transducer for iOS Safari.
+// Professional Haptic Feedback Engine for swap.
+// Optimized for iOS (iPhone WebKit/PWA) and Android (Chrome Vibration API).
 
 export type HapticPattern =
   | 'light'
@@ -64,8 +64,12 @@ class HapticEngine {
     return this.isEnabled;
   }
 
-  // Audio-tactile impulse fallback (sub-bass speaker transducer for devices lacking hardware vibration motor like iOS Safari)
-  private playAudioTactileImpulse(freq = 145, duration = 0.055, gainLevel = 0.85) {
+  /**
+   * Sub-bass acoustic-tactile impulse for iPhone / iOS Safari
+   * Plays a 50Hz sub-audible acoustic kick through the bottom speaker chassis
+   * creating a real physical tactile tap in the palm of the hand.
+   */
+  private playIosTactilePulse(freq = 55, duration = 0.028, gainLevel = 0.8) {
     if (typeof window === 'undefined') return;
     try {
       this.init();
@@ -78,18 +82,20 @@ class HapticEngine {
       const osc = this.audioCtx.createOscillator();
       const gain = this.audioCtx.createGain();
 
-      osc.type = 'triangle';
+      osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, now);
-      osc.frequency.exponentialRampToValueAtTime(38, now + duration);
+      osc.frequency.exponentialRampToValueAtTime(28, now + duration);
 
-      gain.gain.setValueAtTime(gainLevel, now);
+      // Fast attack & decay for a sharp crisp tap without audible audio pop
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(gainLevel, now + 0.003);
       gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
       osc.connect(gain);
       gain.connect(this.audioCtx.destination);
 
       osc.start(now);
-      osc.stop(now + duration + 0.01);
+      osc.stop(now + duration + 0.005);
     } catch {
       // Audio failsafe
     }
@@ -110,80 +116,84 @@ class HapticEngine {
             navigator.vibrate(pattern);
           } catch {}
         }
-        this.playAudioTactileImpulse(140, 0.05, 0.7);
+        this.playIosTactilePulse(55, 0.03, 0.7);
         return;
       }
 
       switch (pattern) {
         case 'light':
         case 'selection':
-          // 38ms threshold guarantees linear resonant actuator (LRA/ERM) motor spin-up on modern Android phones
+          // 18ms crisp micro-tick on Android LRA
           if (hasVibrator) {
             try {
-              navigator.vibrate(38);
+              navigator.vibrate(18);
             } catch {}
           }
-          this.playAudioTactileImpulse(160, 0.04, 0.65);
+          this.playIosTactilePulse(65, 0.022, 0.6);
           break;
 
         case 'medium':
+          // 32ms solid button engagement
           if (hasVibrator) {
             try {
-              navigator.vibrate(65);
+              navigator.vibrate(32);
             } catch {}
           }
-          this.playAudioTactileImpulse(140, 0.055, 0.85);
+          this.playIosTactilePulse(55, 0.03, 0.8);
           break;
 
         case 'heavy':
+          // 55ms pronounced pulse
           if (hasVibrator) {
             try {
-              navigator.vibrate(110);
+              navigator.vibrate(55);
             } catch {}
           }
-          this.playAudioTactileImpulse(115, 0.08, 0.95);
+          this.playIosTactilePulse(48, 0.045, 0.95);
           break;
 
         case 'trade':
         case 'success':
-          // Tactile celebratory heartbeat
+          // Celebratory double-pulse [20ms, pause 35ms, 30ms]
           if (hasVibrator) {
             try {
-              navigator.vibrate([45, 40, 45, 40, 85]);
+              navigator.vibrate([20, 35, 30]);
             } catch {}
           }
-          this.playAudioTactileImpulse(150, 0.09, 0.85);
+          this.playIosTactilePulse(60, 0.03, 0.85);
+          setTimeout(() => this.playIosTactilePulse(50, 0.035, 0.9), 40);
           break;
 
         case 'nudge':
-          // Sharp double-punch pulse
+          // Sharp double-pulse [25ms, pause 30ms, 25ms]
           if (hasVibrator) {
             try {
-              navigator.vibrate([50, 40, 65]);
+              navigator.vibrate([25, 30, 25]);
             } catch {}
           }
-          this.playAudioTactileImpulse(170, 0.07, 0.85);
+          this.playIosTactilePulse(70, 0.025, 0.8);
+          setTimeout(() => this.playIosTactilePulse(60, 0.03, 0.85), 35);
           break;
 
         case 'handshake':
-          // Heavy ceremonial handshake haptic burst
+          // Smooth ceremonial sequence
           if (hasVibrator) {
             try {
-              navigator.vibrate([60, 40, 85, 45, 130, 50, 190]);
+              navigator.vibrate([30, 35, 45, 35, 65]);
             } catch {}
           }
-          this.playAudioTactileImpulse(120, 0.14, 0.95);
+          this.playIosTactilePulse(52, 0.04, 0.9);
+          setTimeout(() => this.playIosTactilePulse(48, 0.05, 0.95), 50);
           break;
 
         case 'warning':
         case 'error':
-          // Warning vibration pulse
           if (hasVibrator) {
             try {
-              navigator.vibrate([55, 45, 55, 45, 75]);
+              navigator.vibrate([35, 40, 35]);
             } catch {}
           }
-          this.playAudioTactileImpulse(100, 0.09, 0.85);
+          this.playIosTactilePulse(45, 0.04, 0.85);
           break;
       }
     } catch {
