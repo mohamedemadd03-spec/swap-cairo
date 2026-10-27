@@ -18,7 +18,7 @@ const SIZES = ['S', 'M', 'L', 'XL', 'XXL', '30', '32', '34', '36', '42', '43', '
 export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onAddItem }) => {
   const { language, t } = useLanguage();
   const isAr = language === 'ar';
-  const [category, setCategory] = useState<GarmentCategory>('tees');
+  const [category, setCategory] = useState<GarmentCategory>('hoodie');
   const [title, setTitle] = useState('');
   const [size, setSize] = useState('L');
   const [value, setValue] = useState<number>(650);
@@ -149,7 +149,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
         if (a.suggestedSize) setSize(a.suggestedSize);
         if (a.estimatedValueEgp) setValue(Number(a.estimatedValueEgp));
         if (a.condition) setConditionGrade(a.condition);
-        if (a.category && ['tees', 'denim', 'hoodie', 'jacket', 'shoes'].includes(a.category)) {
+        if (a.category && ['denim', 'hoodie', 'jacket', 'shoes'].includes(a.category)) {
           setCategory(a.category as GarmentCategory);
         }
       }
@@ -512,12 +512,11 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
             />
 
             {/* Category Pills */}
-            <div className="grid grid-cols-5 gap-1 font-mono text-[10px]">
+            <div className="grid grid-cols-4 gap-1 font-mono text-[10px]">
               {[
-                { id: 'tees', label: t('catTops') },
-                { id: 'denim', label: t('catDenim') },
                 { id: 'hoodie', label: isAr ? 'هوديز' : 'Hoodies' },
                 { id: 'jacket', label: t('catJackets') },
+                { id: 'denim', label: t('catDenim') },
                 { id: 'shoes', label: t('catShoes') },
               ].map((c) => (
                 <button
@@ -533,7 +532,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
                     } else if (nextCat === 'shoes' && !['41', '42', '43', '44'].includes(size)) {
                       setSize('42');
                     } else if (
-                      ['tees', 'hoodie', 'jacket'].includes(nextCat) &&
+                      ['hoodie', 'jacket'].includes(nextCat) &&
                       !['S', 'M', 'L', 'XL'].includes(size)
                     ) {
                       setSize('L');
