@@ -174,11 +174,26 @@ export const authService = {
     return data.user as AuthUser;
   },
 
-  async resetPassword(identifier: string, phoneNumber: string, newPassword: string): Promise<AuthUser> {
+  async verifyResetPhone(phoneNumber: string): Promise<{ verified: boolean; handle: string; displayName?: string; phoneNumber: string }> {
+    const res = await fetch('/api/auth/verify-reset-phone', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data?.error || 'رقم الهاتف غير مسجل في النظام');
+    }
+
+    return data;
+  },
+
+  async resetPassword(phoneNumber: string, newPassword: string, identifier?: string): Promise<AuthUser> {
     const res = await fetch('/api/auth/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, phoneNumber, newPassword }),
+      body: JSON.stringify({ phoneNumber, newPassword, identifier }),
     });
 
     const data = await res.json();

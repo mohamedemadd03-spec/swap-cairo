@@ -1467,17 +1467,60 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
-// 2.1 Reset Password with Verified Phone Number
+// 2.05 Verify Phone for Password Reset (Step 1 of Forgot Password)
+app.post('/api/auth/verify-reset-phone', (req, res) => {
+  try {
+    const { phoneNumber } = req.body || {};
+    const rawPhone = String(phoneNumber || '').trim();
+
+    if (!rawPhone) {
+      return res.status(400).json({ success: false, error: 'يرجى إدخال رقم هاتفك المسجل' });
+    }
+
+    const cleanDigits = rawPhone.replace(/\D/g, '');
+    if (cleanDigits.length < 9) {
+      return res.status(400).json({ success: false, error: 'يرجى إدخال رقم هاتف مصري صحيح (11 رقماً)' });
+    }
+    const cleanLast9 = cleanDigits.slice(-9);
+
+    const dbState = readServerDb() || {};
+    const users = dbState.users || [];
+
+    const user = users.find((u) => {
+      const uPhone = (u.phoneNumber || '').replace(/\D/g, '');
+      return uPhone && uPhone.endsWith(cleanLast9);
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'رقم الهاتف هذا غير مسجل لدينا في SWAP، يرجى التأكد من الرقم أو إنشاء حساب جديد',
+      });
+    }
+
+    if (user.isBanned) {
+      return res.status(403).json({ success: false, error: 'هذا الحساب محظور نهائياً ولا يمكن استعادته' });
+    }
+
+    return res.json({
+      success: true,
+      verified: true,
+      handle: user.handle,
+      displayName: user.displayName || user.handle,
+      phoneNumber: user.phoneNumber,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Verification failed' });
+  }
+});
+
+// 2.1 Reset Password with Verified Phone Number (Step 2 of Forgot Password)
 app.post('/api/auth/reset-password', (req, res) => {
   try {
     const { identifier, phoneNumber, newPassword } = req.body || {};
-    const rawId = String(identifier || '').trim();
     const rawPhone = String(phoneNumber || '').trim();
     const rawPass = String(newPassword || '');
 
-    if (!rawId) {
-      return res.status(400).json({ success: false, error: 'يرجى إدخال اسم المستخدم أو هاندل الحساب' });
-    }
     if (!rawPhone) {
       return res.status(400).json({ success: false, error: 'يرجى إدخال رقم هاتفك المسجل لتأكيد هويتك' });
     }
@@ -1491,22 +1534,19 @@ app.post('/api/auth/reset-password', (req, res) => {
     const dbState = readServerDb() || {};
     const users = dbState.users || [];
 
-    const normId = rawId.toLowerCase().replace(/^@/, '');
-
-    // Find user by handle or phone
+    // Find user by phone number (primary) or handle
     const user = users.find((u) => {
-      const uHandle = u.handle.toLowerCase().replace(/^@/, '');
-      return uHandle === normId || (u.phoneNumber && u.phoneNumber.replace(/\D/g, '').endsWith(cleanLast9));
+      const uPhone = (u.phoneNumber || '').replace(/\D/g, '');
+      if (uPhone && uPhone.endsWith(cleanLast9)) return true;
+      if (identifier) {
+        const normId = String(identifier).toLowerCase().replace(/^@/, '');
+        return u.handle.toLowerCase().replace(/^@/, '') === normId;
+      }
+      return false;
     });
 
     if (!user) {
-      return res.status(404).json({ success: false, error: 'لم يتم العثور على حساب بهذه البيانات' });
-    }
-
-    // Verify phone match
-    const userPhoneDigits = (user.phoneNumber || '').replace(/\D/g, '');
-    if (!userPhoneDigits || !userPhoneDigits.endsWith(cleanLast9)) {
-      return res.status(400).json({ success: false, error: 'رقم الهاتف المدخل غير مطابق لرقم الهاتف المسجل لهذا الحساب' });
+      return res.status(404).json({ success: false, error: 'لم يتم العثور على حساب مرتبط برقم الهاتف هذا' });
     }
 
     if (user.isBanned) {
