@@ -45,9 +45,6 @@ export interface Garment {
   hasOriginalBox?: boolean;
   boxCondition?: 'mint' | 'damaged' | 'replacement' | 'no_box';
   authenticityChecklist?: AuthenticityChecklist;
-  museumProvenance?: MuseumArchiveProvenance;
-  genderFit?: 'unisex' | 'womens' | 'mens';
-  isGirlsOnlyCircle?: boolean;
 }
 
 export interface WardrobeItem {
@@ -77,23 +74,6 @@ export interface WardrobeItem {
   boxCondition?: 'mint' | 'damaged' | 'replacement' | 'no_box';
   authenticityChecklist?: AuthenticityChecklist;
   category?: 'hoodie' | 'jacket' | 'denim' | 'shoes' | 'tees' | 'flannel' | 'accessories';
-  museumProvenance?: MuseumArchiveProvenance;
-  genderFit?: 'unisex' | 'womens' | 'mens';
-  isGirlsOnlyCircle?: boolean;
-}
-
-export interface MuseumArchiveProvenance {
-  lotNumber?: string;
-  era?: string;
-  fabricComposition?: string;
-  stitchDetail?: string;
-  originCountry?: string;
-  rarityTier?: string;
-  fairValueRangeEgp?: string;
-  globalResaleUsd?: string;
-  aestheticArchetype?: string;
-  curatorEditorial?: string;
-  provenancePassportId?: string;
 }
 
 export type AuthenticityTier = 'og_box_verified' | 'hub_inspected' | 'community_vintage';
@@ -281,8 +261,6 @@ export interface FilterSettings {
   priceRange: [number, number];
   onlyPro: boolean;
   sizes: string[];
-  genderFit?: 'all' | 'unisex' | 'womens' | 'mens';
-  girlsOnlyCircleOnly?: boolean;
 }
 
 export type TelemetryEventType =

@@ -374,12 +374,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                       <span className="px-2 py-0.5 rounded bg-[#caf300] text-[#171e00] font-mono text-[10px] font-bold uppercase">
                         {t('size')} {activeGarment.size}
                       </span>
-                      {activeGarment.isGirlsOnlyCircle && (
-                        <span className="px-2 py-0.5 rounded bg-[#ff69b4]/25 text-[#ff69b4] font-mono text-[9.5px] font-bold uppercase border border-[#ff69b4]/50 flex items-center gap-1">
-                          <span>🌸</span>
-                          <span>GIRLS CIRCLE</span>
-                        </span>
-                      )}
                       <span className="px-2 py-0.5 rounded bg-[#201f21]/90 text-[#c5c9ac] font-mono text-[10px] uppercase border border-white/10">
                         {activeGarment.condition || '9.2 / 10 MINT'}
                       </span>

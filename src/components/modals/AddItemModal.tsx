@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { WardrobeItem, MuseumArchiveProvenance } from '../../types/swap';
+import { WardrobeItem } from '../../types/swap';
 import { soundFX, triggerHaptic } from '../../hooks/useSoundFX';
 import { compressImageFile } from '../../services/dataSync';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -31,9 +31,6 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
   const [moderationNote, setModerationNote] = useState<string>(
     'Balanced AI Assistant: Auto-fills details & welcomes vintage patina (blocks only NSFW, non-apparel, or unwearable rags).'
   );
-  const [museumData, setMuseumData] = useState<MuseumArchiveProvenance | null>(null);
-  const [genderFit, setGenderFit] = useState<'unisex' | 'womens' | 'mens'>('unisex');
-  const [isGirlsOnlyCircle, setIsGirlsOnlyCircle] = useState(false);
 
   // Step-by-Step Progressive Flow: 'front' -> 'tag' -> 'details'
   const [step, setStep] = useState<'front' | 'tag' | 'details'>('front');
@@ -143,7 +140,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
         setModerationStatus('approved');
         setModerationNote(
           a.lightingNote ||
-            `Archival Verified • ${a.era || 'Vintage'} • Condition ${a.condition || '9.2 / 10'}`
+            `Verified Apparel • Condition ${a.condition || '9.2 / 10 MINT'}`
         );
         if (!title.trim() && a.title) {
           setTitle(a.title);
@@ -154,27 +151,6 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
         if (a.category && ['tees', 'denim', 'hoodie', 'jacket', 'shoes'].includes(a.category)) {
           setCategory(a.category as GarmentCategory);
         }
-        if (a.genderFit && ['unisex', 'womens', 'mens'].includes(a.genderFit)) {
-          setGenderFit(a.genderFit);
-          if (a.genderFit === 'womens') {
-            setIsGirlsOnlyCircle(true);
-          }
-        }
-
-        const provenance: MuseumArchiveProvenance = {
-          lotNumber: a.lotNumber || `LOT #CAI-ARC-${Math.floor(1000 + Math.random() * 9000)}`,
-          era: a.era || 'Late 1990s Vintage',
-          fabricComposition: a.fabricComposition || '100% 450gsm Heavyweight Cotton',
-          stitchDetail: a.stitchingDetails || 'Single-stitch hem & cuffs',
-          originCountry: a.countryOfOrigin || 'Made in USA / Japan',
-          rarityTier: a.rarityTier || 'Archival Core',
-          fairValueRangeEgp: a.fairValueRangeEgp || `${Number(a.estimatedValueEgp || 650) - 50} – ${Number(a.estimatedValueEgp || 650) + 150} EGP`,
-          globalResaleUsd: a.globalResaleUsd || `$${Math.round(Number(a.estimatedValueEgp || 650) / 45)} – $${Math.round((Number(a.estimatedValueEgp || 650) + 150) / 45)} USD`,
-          aestheticArchetype: a.aestheticArchetype || 'Streetwear Archive',
-          curatorEditorial: a.curatorEditorial || 'Archival circular piece cataloged with verified weave and seam tension.',
-          provenancePassportId: `ARC-PASS-${Date.now().toString(36).toUpperCase()}`,
-        };
-        setMuseumData(provenance);
       }
     } catch {
       setModerationStatus('approved');
@@ -282,19 +258,6 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
     const cleanTitle = title.trim();
     const isLiveCameraVerified = Boolean(frontFromLiveCamera || tagFromLiveCamera);
 
-    const finalMuseumData: MuseumArchiveProvenance = museumData || {
-      lotNumber: `LOT #CAI-ARC-${Math.floor(1000 + Math.random() * 9000)}`,
-      era: 'Modern Streetwear Archive',
-      fabricComposition: '100% Heavyweight Cotton',
-      stitchDetail: 'Double-needle reinforced',
-      originCountry: 'Verified Circular Origin',
-      rarityTier: 'Archival Core',
-      fairValueRangeEgp: `${value - 50} – ${value + 100} EGP`,
-      globalResaleUsd: `$${Math.round(value / 45)} – $${Math.round((value + 200) / 45)} USD`,
-      curatorEditorial: `${cleanTitle} cataloged into SWAP Cairo living archive. Verified wearable condition.`,
-      provenancePassportId: `ARC-PASS-${Date.now().toString(36).toUpperCase()}`,
-    };
-
     const newItem: WardrobeItem = {
       id: `vault-${Date.now()}`,
       title: cleanTitle,
@@ -313,12 +276,9 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
       },
       isLiveCameraVerified,
       condition: conditionGrade,
-      description: `Authentic ${cleanTitle} (${conditionGrade}). Era: ${finalMuseumData.era}. Fabric: ${finalMuseumData.fabricComposition}.`,
+      description: `Authentic ${cleanTitle} (${conditionGrade}). Ready for trade.`,
       authenticityTier: 'hub_inspected',
       hasOriginalBox: false,
-      museumProvenance: finalMuseumData,
-      genderFit,
-      isGirlsOnlyCircle: genderFit === 'womens' ? isGirlsOnlyCircle : false,
     };
 
     onAddItem(newItem);
@@ -327,9 +287,6 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
     setTagPhoto('');
     setFrontFromLiveCamera(false);
     setTagFromLiveCamera(false);
-    setMuseumData(null);
-    setGenderFit('unisex');
-    setIsGirlsOnlyCircle(false);
     setModerationStatus('idle');
     onClose();
   };
@@ -529,50 +486,6 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
               className="w-full bg-[#131315] border border-white/10 px-3.5 py-2.5 text-xs font-sans text-white rounded-xl focus:outline-none focus:border-[#caf300]"
             />
 
-            {/* Museum Archival Intelligence Passport Card */}
-            {museumData && (
-              <div className="p-3 rounded-2xl bg-[#171618] border border-[#caf300]/30 flex flex-col gap-2 font-mono shadow-sm">
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-[#caf300] font-bold uppercase flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[13px]">museum</span>
-                    <span>ARCHIVE PASSPORT // {museumData.lotNumber}</span>
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-[#caf300]/15 text-[#caf300] font-bold text-[8.5px] uppercase border border-[#caf300]/30">
-                    {museumData.rarityTier || 'Grail Tier 1'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-[9.5px]">
-                  <div className="p-2 rounded-xl bg-[#100f12] border border-white/5 flex flex-col gap-0.5">
-                    <span className="text-[#8f9378] uppercase text-[8px]">Era &amp; Origin</span>
-                    <span className="text-white font-bold truncate">{museumData.era}</span>
-                    <span className="text-[#caf300] text-[8px] truncate">{museumData.originCountry}</span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-[#100f12] border border-white/5 flex flex-col gap-0.5">
-                    <span className="text-[#8f9378] uppercase text-[8px]">Fair Barter Range</span>
-                    <span className="text-[#caf300] font-bold truncate">{museumData.fairValueRangeEgp}</span>
-                    <span className="text-[#8f9378] text-[8px] truncate">Global: {museumData.globalResaleUsd}</span>
-                  </div>
-                </div>
-
-                <div className="p-2 rounded-xl bg-[#100f12] border border-white/5 flex flex-col gap-1 text-[9.5px]">
-                  <div className="flex items-center justify-between text-[#c5c9ac]">
-                    <span className="font-bold text-white truncate max-w-[190px]">
-                      {museumData.fabricComposition}
-                    </span>
-                    <span className="text-[8px] text-[#8f9378] truncate max-w-[130px]">
-                      {museumData.stitchDetail}
-                    </span>
-                  </div>
-                  {museumData.curatorEditorial && (
-                    <p className="text-[8.5px] text-[#c5c9ac] font-sans leading-relaxed border-t border-white/5 pt-1 italic">
-                      "{museumData.curatorEditorial}"
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Category Pills */}
             <div className="grid grid-cols-5 gap-1 font-mono text-[10px]">
               {[
@@ -691,82 +604,6 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onA
                   </button>
                 );
               })}
-            </div>
-
-            {/* Streetwear Gender Fit & Girls-Only Circle Architecture */}
-            <div className="space-y-1.5 p-2 rounded-xl bg-[#131315] border border-white/5">
-              <div className="flex items-center justify-between text-[10px] font-mono font-bold text-[#8f9378]">
-                <span>FIT TYPE // الفيت والاستايل</span>
-                <span className="text-[#caf300] uppercase text-[9px]">{genderFit}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-1 font-mono text-[10px]">
-                {[
-                  { id: 'unisex' as const, label: 'الكل Unisex' },
-                  { id: 'womens' as const, label: 'بناتي (Her) 🌸' },
-                  { id: 'mens' as const, label: 'رجالي (Him) ⚡' },
-                ].map((fit) => (
-                  <button
-                    key={fit.id}
-                    type="button"
-                    onClick={() => {
-                      soundFX.playClick();
-                      triggerHaptic('light');
-                      setGenderFit(fit.id);
-                      if (fit.id === 'womens') {
-                        setIsGirlsOnlyCircle(true);
-                      } else {
-                        setIsGirlsOnlyCircle(false);
-                      }
-                    }}
-                    className={`py-1.5 px-1 rounded-lg font-bold text-center transition-all cursor-pointer border ${
-                      genderFit === fit.id
-                        ? fit.id === 'womens'
-                          ? 'bg-[#ff69b4]/20 border-[#ff69b4] text-[#ff69b4]'
-                          : fit.id === 'mens'
-                          ? 'bg-[#38bdf8]/20 border-[#38bdf8] text-[#38bdf8]'
-                          : 'bg-[#caf300] border-[#caf300] text-[#171e00]'
-                        : 'bg-[#0a0a0c] border-white/5 text-[#c5c9ac]'
-                    }`}
-                  >
-                    {fit.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Girls-Only Circle Toggle (Active when womens is selected) */}
-              {genderFit === 'womens' && (
-                <div
-                  onClick={() => {
-                    soundFX.playClick();
-                    triggerHaptic('light');
-                    setIsGirlsOnlyCircle(!isGirlsOnlyCircle);
-                  }}
-                  className={`mt-2 p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
-                    isGirlsOnlyCircle
-                      ? 'bg-[#ff69b4]/10 border-[#ff69b4]/60 text-white'
-                      : 'bg-[#0a0a0c] border-white/10 text-white/60'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">🌸</span>
-                    <div>
-                      <p className="text-[11px] font-bold text-[#ff69b4]">سواب بنات لبنات فقط (Girls-Only Circle)</p>
-                      <p className="text-[9px] text-[#8f9378]">القطعة تظهر للبنات فقط ويتم السواب والتواصل بينكم بخصوصية وأمان 100%</p>
-                    </div>
-                  </div>
-                  <div
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors shrink-0 ${
-                      isGirlsOnlyCircle ? 'bg-[#ff69b4]' : 'bg-white/20'
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                        isGirlsOnlyCircle ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
 
             <button
