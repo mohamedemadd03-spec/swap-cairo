@@ -190,27 +190,45 @@ export default function App() {
   const [requestTargetGarment, setRequestTargetGarment] = useState<Garment | null>(null);
   const [userTrustPoints, setUserTrustPoints] = useState<number>(initialHydrated.userTrustPoints);
 
-  // Reconcile state from Express Server DB on startup
+  // Reconcile state from Express Server DB on startup & Real-Time Sync with Admin Deletions
   useEffect(() => {
-    fetchServerPersistedState().then((serverState) => {
-      if (!serverState) return;
-      if (Array.isArray(serverState.garments) && serverState.garments.length > 0) {
-        setGarments(serverState.garments);
-      }
-      if (Array.isArray(serverState.wardrobe) && serverState.wardrobe.length > 0) {
-        setWardrobe(serverState.wardrobe);
-      }
-      if (Array.isArray(serverState.offers) && serverState.offers.length > 0) {
-        setOffers(serverState.offers);
-      }
-      if (typeof serverState.userTrustPoints === 'number') {
-        setUserTrustPoints(serverState.userTrustPoints);
-      }
-      if (serverState.preferredHubId) {
-        const foundHub = HUB_LOCATIONS.find((h) => h.id === serverState.preferredHubId);
-        if (foundHub) setCurrentHub(foundHub);
-      }
-    });
+    const syncWithServer = () => {
+      fetchServerPersistedState().then((serverState: any) => {
+        if (!serverState) return;
+        const deletedSet = new Set(serverState.deletedGarmentIds || []);
+
+        if (Array.isArray(serverState.garments)) {
+          const activeGarments = serverState.garments.filter((g: any) => !deletedSet.has(g.id));
+          setGarments(activeGarments);
+        }
+        if (Array.isArray(serverState.wardrobe)) {
+          const activeWardrobe = serverState.wardrobe.filter((w: any) => !deletedSet.has(w.id));
+          setWardrobe(activeWardrobe);
+        }
+        if (Array.isArray(serverState.offers)) {
+          const activeOffers = serverState.offers.filter(
+            (o: any) => !deletedSet.has(o.theirItem?.id) && !deletedSet.has(o.yourItem?.id)
+          );
+          setOffers(activeOffers);
+        }
+        if (typeof serverState.userTrustPoints === 'number') {
+          setUserTrustPoints(serverState.userTrustPoints);
+        }
+        if (serverState.preferredHubId) {
+          const foundHub = HUB_LOCATIONS.find((h) => h.id === serverState.preferredHubId);
+          if (foundHub) setCurrentHub(foundHub);
+        }
+      });
+    };
+
+    syncWithServer();
+    window.addEventListener('focus', syncWithServer);
+    const interval = setInterval(syncWithServer, 4000);
+
+    return () => {
+      window.removeEventListener('focus', syncWithServer);
+      clearInterval(interval);
+    };
   }, []);
 
   // Automatically persist every state change to LocalStorage + Express Server DB
@@ -1241,7 +1259,7 @@ export default function App() {
 
     const userHandle = currentUser?.handle
       ? (currentUser.handle.startsWith('@') ? currentUser.handle : `@${currentUser.handle}`)
-      : (currentUser?.displayName ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '_')}` : '@swapper_cairo');
+      : (currentUser?.displayName ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '_')}` : (currentUser?.phoneNumber ? currentUser.phoneNumber : '@swapper_cairo'));
     const completedCount = offers.filter((o) => o.status === 'completed').length;
 
     // Also publish the uploaded piece to the neighborhood feed
@@ -1256,7 +1274,7 @@ export default function App() {
       size: newItem.size,
       badge: newItem.isLiveCameraVerified ? 'LIVE CAM VERIFIED' : 'JUST LISTED',
       archiveTag: 'LOCAL VAULT',
-      distance: '0.1 km • Your Closet',
+      distance: '0.1 km • دولابك الشخصي',
       city: currentHub.name,
       imageUrl: newItem.imageUrl,
       angles: newItem.angles,
@@ -1264,14 +1282,14 @@ export default function App() {
       description: newItem.description || `Authentic ${newItem.title}. Ready for 1-to-1 barter.`,
       category: newItem.category || 'tees',
       owner: {
-        name: currentUser?.displayName || 'You',
+        name: currentUser?.displayName || currentUser?.handle || 'سوابر',
         handle: userHandle,
         isPro: completedCount >= 2,
-        rating: 5.0,
+        rating: completedCount > 0 ? 5.0 : 0,
         swapCount: completedCount,
         avatarUrl:
           currentUser?.photoURL ||
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuDiBFlwRfyYNXXzMMHog4cnQQF4aB7aMTx6jmYgc1oqDyInrgqUHMU_dEBicHujxi6YICVBf-I-dChd_1HAp5YJG5jmU24PI08rtPjdiQOxaFyGGJLHPgqfAMdWprP8Z8Ar7uBKcTHyORErqdcBr_XjOMJ_CLTid-_SeoHMjHqi_pkw1dXC3dZWEKid0tRCavzL4tn8mVFj3sIxSjv6TIMzCDbGoHRiZkTwG8vDF1ZxorcBHjzHnUVq',
+          `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userHandle)}`,
         location: currentHub.name,
       },
       tags: ['Verified', 'New Upload'],

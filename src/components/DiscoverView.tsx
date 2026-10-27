@@ -431,15 +431,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                           <span>{t('liveCamBadge')}</span>
                         </span>
                       )}
-                      {userWardrobe.some(
-                        (w) =>
-                          w.status !== 'pending' &&
-                          Math.abs((w.value || 0) - activeGarment.estValue) <= 150
-                      ) && (
-                        <span className="px-2 py-0.5 rounded bg-[#caf300]/20 text-[#caf300] font-mono text-[9.5px] font-bold uppercase border border-[#caf300]/40 flex items-center gap-0.5">
-                          <span>{t('highMatchOdds')}</span>
-                        </span>
-                      )}
                       <span className="ml-auto font-mono text-[10px] text-[#c5c9ac]">
                         {activeIndex + 1} / {displayedDeck.length}
                       </span>
@@ -479,13 +470,21 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                       </div>
 
                       <div className="flex flex-col items-end shrink-0 font-mono">
-                        <div className="flex items-center gap-1 text-[11px] text-[#caf300] font-bold">
-                          <span>★</span>
-                          <span>{activeGarment.owner.rating || '5.0'}</span>
-                        </div>
-                        <span className="text-[#8f9378] text-[9.5px]">
-                          ({activeGarment.owner.swapCount || 0} تبديل)
-                        </span>
+                        {activeGarment.owner.swapCount && activeGarment.owner.swapCount > 0 ? (
+                          <>
+                            <div className="flex items-center gap-1 text-[11px] text-[#caf300] font-bold">
+                              <span>★</span>
+                              <span>{activeGarment.owner.rating ? Number(activeGarment.owner.rating).toFixed(1) : '5.0'}</span>
+                            </div>
+                            <span className="text-[#8f9378] text-[9.5px]">
+                              ({activeGarment.owner.swapCount} تبديل)
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-[#8f9378] text-[9.5px] bg-white/[0.04] border border-white/5 px-2 py-0.5 rounded">
+                            سوابر جديد ⚡
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

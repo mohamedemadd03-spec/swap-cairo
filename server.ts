@@ -73,6 +73,7 @@ interface ServerDatabaseState {
   reports?: ServerReport[];
   bannedHandles?: string[];
   bannedIps?: string[];
+  deletedGarmentIds?: string[];
   updatedAt?: string;
 }
 
@@ -1026,10 +1027,29 @@ app.get('/api/state', (_req, res) => {
 app.post('/api/sync', (req, res) => {
   try {
     const { garments, wardrobe, offers, userTrustPoints, preferredHubId } = req.body || {};
+    const dbState = readServerDb() || {};
+    const deletedSet = new Set(dbState.deletedGarmentIds || []);
+
+    const cleanGarments = Array.isArray(garments)
+      ? garments.filter((g) => !deletedSet.has(g.id)).slice(0, 100)
+      : undefined;
+    const cleanWardrobe = Array.isArray(wardrobe)
+      ? wardrobe.filter((w) => !deletedSet.has(w.id)).slice(0, 100)
+      : undefined;
+    const cleanOffers = Array.isArray(offers)
+      ? offers
+          .filter(
+            (o) =>
+              !deletedSet.has(o.theirItem?.id) &&
+              !deletedSet.has(o.yourItem?.id)
+          )
+          .slice(0, 100)
+      : undefined;
+
     writeServerDb({
-      ...(Array.isArray(garments) ? { garments: garments.slice(0, 100) } : {}),
-      ...(Array.isArray(wardrobe) ? { wardrobe: wardrobe.slice(0, 100) } : {}),
-      ...(Array.isArray(offers) ? { offers: offers.slice(0, 100) } : {}),
+      ...(cleanGarments !== undefined ? { garments: cleanGarments } : {}),
+      ...(cleanWardrobe !== undefined ? { wardrobe: cleanWardrobe } : {}),
+      ...(cleanOffers !== undefined ? { offers: cleanOffers } : {}),
       ...(typeof userTrustPoints === 'number' && Number.isFinite(userTrustPoints)
         ? { userTrustPoints: Math.max(0, Math.min(1000000, userTrustPoints)) }
         : {}),
@@ -1040,6 +1060,7 @@ app.post('/api/sync', (req, res) => {
     return res.json({
       success: true,
       syncedAt: new Date().toISOString(),
+      deletedGarmentIds: Array.from(deletedSet),
     });
   } catch (err: any) {
     return res.status(500).json({
@@ -1797,6 +1818,14 @@ app.post('/api/reports/:id/resolve', (req, res) => {
       wardrobe = wardrobe.filter((g) => g.id !== report.garmentId);
       // Cancel active offers
       offers = offers.filter((o) => o.theirItem?.id !== report.garmentId && o.yourItem?.id !== report.garmentId);
+      const deletedGarmentIds = Array.from(new Set([...(dbState.deletedGarmentIds || []), report.garmentId]));
+      writeServerDb({
+        reports,
+        garments,
+        wardrobe,
+        offers,
+        deletedGarmentIds,
+      });
     } else {
       report.status = 'resolved_dismissed';
       report.resolvedAt = new Date().toISOString();
@@ -1804,16 +1833,15 @@ app.post('/api/reports/:id/resolve', (req, res) => {
       garments = garments.map((g) =>
         g.id === report.garmentId ? { ...g, isTraded: false, isReported: false } : g
       );
+      writeServerDb({
+        reports,
+        garments,
+        wardrobe,
+        offers,
+      });
     }
 
     reports[reportIndex] = report;
-
-    writeServerDb({
-      reports,
-      garments,
-      wardrobe,
-      offers,
-    });
 
     return res.json({
       success: true,
@@ -2036,19 +2064,22 @@ app.post('/api/admin/delete-garment', (req, res) => {
   }
 
   const dbState = readServerDb() || {};
-  let garments = (dbState.garments || []).filter((g) => g.id !== garmentId);
-  let wardrobe = (dbState.wardrobe || []).filter((w) => w.id !== garmentId);
-  let offers = (dbState.offers || []).filter((o) => o.theirItem?.id !== garmentId && o.yourItem?.id !== garmentId);
+  const garments = (dbState.garments || []).filter((g) => g.id !== garmentId);
+  const wardrobe = (dbState.wardrobe || []).filter((w) => w.id !== garmentId);
+  const offers = (dbState.offers || []).filter((o) => o.theirItem?.id !== garmentId && o.yourItem?.id !== garmentId);
+  const deletedGarmentIds = Array.from(new Set([...(dbState.deletedGarmentIds || []), garmentId]));
 
   writeServerDb({
     garments,
     wardrobe,
     offers,
+    deletedGarmentIds,
   });
 
   return res.json({
     success: true,
     message: 'تم حذف القطعة نهائياً من السيستم.',
+    deletedGarmentIds,
   });
 });
 
