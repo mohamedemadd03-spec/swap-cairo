@@ -1,0 +1,7 @@
+# Robots.txt for swap. — Raw Streetwear Barter Exchange
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://swap-cairo.onrender.com/sitemap.xml
