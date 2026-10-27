@@ -170,9 +170,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             <h1 className="font-display text-xs font-bold uppercase text-white tracking-tight truncate">
               {t('cairoFeed')}
             </h1>
-            <span className="font-mono text-[9px] text-[#caf300] bg-[#caf300]/10 px-1.5 py-0.5 rounded-full font-bold shrink-0">
-              {filteredAndSortedGarments.length} {t('live')}
-            </span>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
