@@ -529,21 +529,33 @@ export function rankCairoFeedEngine(
     return true;
   });
 
-  // 2. Score each eligible item across all vectors
-  const scoredItems = eligible.map((garment) => {
+  // If strict radius filter yields 0 items, expand radius automatically so closest available items in adjacent areas show
+  const candidatePool = eligible.length > 0 ? eligible : garments.filter((g) => !g.isTraded);
+
+  // 2. Score each candidate item across all vectors (Taste, Proximity, Rating, Synergy)
+  const scoredItems = candidatePool.map((garment) => {
     const tasteScore = calculateGarmentTasteMatch(garment, profile);
     const { synergyScore } = calculateClosetSynergyScore(garment, wardrobe);
     const distKm = parseDistanceNum(garment.distance);
 
-    // Distance penalty (-1.2 pts per km)
-    const proximityScore = Math.max(0, 20 - distKm * 1.2);
+    // Proximity boost (closer items get bonus up to 25 pts)
+    const proximityScore = Math.max(0, 25 - distKm * 1.2);
 
-    // Thompson Exploration Jitter (±5 pts pseudo-random variation)
-    const jitter = (hashString(garment.id + (profile.totalSwipes % 5).toString()) % 11) - 5;
+    // Owner credibility & rating boost (5.0 rating & active swaps)
+    const ratingScore = Math.max(0, ((garment.owner?.rating || 5.0) - 4.0) * 10);
+    const swapPopularityScore = Math.min(10, (garment.owner?.swapCount || 0) * 1.0);
+
+    // Thompson Exploration Jitter (±3 pts variation)
+    const jitter = (hashString(garment.id + (profile.totalSwipes % 5).toString()) % 7) - 3;
 
     // Composite ranking formula:
-    // 45% Taste Profile + 25% Closet Synergy + 20% Proximity + 10% Exploration Jitter
-    const compositeScore = tasteScore * 0.45 + synergyScore * 0.25 + proximityScore * 0.2 + jitter;
+    // Taste affinity (40%) + Closet Synergy (25%) + Proximity (25%) + Rating & Popularity (10%) + Jitter
+    const compositeScore =
+      tasteScore * 0.40 +
+      synergyScore * 0.25 +
+      proximityScore * 0.25 +
+      (ratingScore + swapPopularityScore) * 0.10 +
+      jitter;
 
     const isSwipedInSession = sessionSwipedIds.has(garment.id);
 

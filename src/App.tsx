@@ -69,8 +69,8 @@ export default function App() {
   const initialHydrated = useMemo(
     () =>
       loadInitialPersistedState({
-        garments: INITIAL_GARMENTS,
-        wardrobe: INITIAL_WARDROBE,
+        garments: [],
+        wardrobe: [],
         offers: ACTIVE_SWAP_OFFERS,
         userTrustPoints: 50,
         preferredHubId: HUB_LOCATIONS[0].id,
@@ -1453,6 +1453,8 @@ export default function App() {
           garments={filteredGarments}
           userWardrobe={wardrobe}
           currentIndex={currentIndex}
+          currentHub={currentHub}
+          onOpenAddItem={() => setIsAddItemOpen(true)}
           onSwipeRight={handleSwipeRight}
           onSwipeLeft={handleSwipeLeft}
           onToggleBookmark={handleToggleBookmark}

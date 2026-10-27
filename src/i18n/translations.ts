@@ -17,7 +17,7 @@ export const translations = {
     navDiscover: 'Discover',
     navCloset: 'My Closet',
     navDeals: 'Deals',
-    navPassport: 'My Pass',
+    navPassport: 'Profile',
 
     // Discover Feed
     cardView: 'Card',
@@ -272,7 +272,7 @@ export const translations = {
     navDiscover: 'استكشف',
     navCloset: 'دولابي',
     navDeals: 'العروض',
-    navPassport: 'الكارنيه',
+    navPassport: 'البروفايل',
 
     // Discover Feed
     cardView: 'كارت',
@@ -387,11 +387,11 @@ export const translations = {
     saveReceiptDone: 'حفظ وإنهاء',
     shareReceipt: 'مشاركة',
     fitCheckTitle: 'فيت تشيك',
-    fitCheckPrompt: '📸 صور فيت تشيك للتوثيق في الكارنيه',
+    fitCheckPrompt: '📸 صور فيت تشيك للتوثيق في البروفايل',
     snapFitCheck: '📸 صور فيت تشيك',
     retakePhoto: 'إعادة التقاط',
     cairoVerifiedStamp: 'هاند شيك موثق • القاهرة',
-    stampedInPassport: '✓ اتوثقت في الكارنيه',
+    stampedInPassport: '✓ اتوثقت في البروفايل',
     sharePolaroid: 'مشاركة',
     fitCheckPolaroid: 'فيت تشيك',
 
@@ -403,7 +403,7 @@ export const translations = {
     send: 'إرسال',
 
     // Swapper Passport & Profile
-    swapperPassport: 'الكارنيه',
+    swapperPassport: 'البروفايل',
     level: 'المستوى',
     pts: 'نقطة',
     verified: 'موثق',

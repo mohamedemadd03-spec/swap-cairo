@@ -174,6 +174,24 @@ export const authService = {
     return data.user as AuthUser;
   },
 
+  async resetPassword(identifier: string, phoneNumber: string, newPassword: string): Promise<AuthUser> {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, phoneNumber, newPassword }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data?.error || 'فشل إعادة تعيين كلمة المرور');
+    }
+
+    if (data.user) {
+      this.setStoredUser(data.user, data.token);
+    }
+    return data.user as AuthUser;
+  },
+
   logout(): void {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(STORAGE_KEYS.USER);

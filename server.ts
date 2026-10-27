@@ -1309,12 +1309,35 @@ app.post('/api/auth/register', (req, res) => {
     if (!rawPass || rawPass.length < 6) {
       return res.status(400).json({ success: false, error: 'كلمة المرور يجب أن لا تقل عن 6 أحرف' });
     }
+    if (!rawPhone) {
+      return res.status(400).json({ success: false, error: 'رقم الهاتف المحمول مطلوب لإنشاء الحساب وتنسيق المقابلات' });
+    }
+
+    const cleanDigits = rawPhone.replace(/\D/g, '');
+    const isEgyptianMobile = (cleanDigits.length === 11 && /^01[0125]/.test(cleanDigits)) ||
+      (cleanDigits.length === 12 && /^201[0125]/.test(cleanDigits));
+
+    if (!isEgyptianMobile) {
+      return res.status(400).json({
+        success: false,
+        error: 'يرجى إدخال رقم هاتف مصري صحيح يبدأ بـ 010 أو 011 أو 012 أو 015 ومكون من 11 رقم',
+      });
+    }
+
+    // Block obvious fake repetitive patterns (e.g. 01000000000, 01111111111, 01234567890)
+    const phoneSuffix = cleanDigits.slice(-8);
+    if (/^(\d)\1+$/.test(phoneSuffix) || phoneSuffix === '12345678' || phoneSuffix === '87654321') {
+      return res.status(400).json({
+        success: false,
+        error: 'رقم الهاتف يبدو غير صحيح. يرجى إدخال رقم هاتفك الحقيقي.',
+      });
+    }
 
     const cleanHandle = rawUsername.startsWith('@')
       ? '@' + rawUsername.slice(1).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 24)
       : '@' + rawUsername.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 24);
 
-    const normPhone = rawPhone ? normalizePhoneNumber(rawPhone) : '';
+    const normPhone = normalizePhoneNumber(rawPhone);
 
     const dbState = readServerDb() || {};
     const existingUsers = dbState.users || [];
@@ -1325,13 +1348,18 @@ app.post('/api/auth/register', (req, res) => {
     }
 
     // Check handle collision
-    if (existingUsers.some((u) => u.handle.toLowerCase() === cleanHandle.toLowerCase())) {
-      return res.status(409).json({ success: false, error: 'اسم المستخدم مسجل بالفعل، اختر اسماً آخر أو سجل دخولك' });
+    const cleanNormHandle = cleanHandle.toLowerCase().replace(/^@/, '');
+    if (existingUsers.some((u) => u.handle.toLowerCase().replace(/^@/, '') === cleanNormHandle)) {
+      return res.status(409).json({ success: false, error: 'اسم المستخدم هذا محجوز بالفعل، يرجى اختيار اسم مستخدم آخر' });
     }
 
-    // Check phone collision if phone provided
-    if (normPhone && existingUsers.some((u) => u.phoneNumber && normalizePhoneNumber(u.phoneNumber) === normPhone)) {
-      return res.status(409).json({ success: false, error: 'رقم الهاتف مسجل بالفعل بحساب آخر، يرجى تسجيل الدخول' });
+    // Check phone collision - phone number can only be registered once
+    const last9 = cleanDigits.slice(-9);
+    if (existingUsers.some((u) => {
+      const uDigits = (u.phoneNumber || '').replace(/\D/g, '');
+      return uDigits && uDigits.endsWith(last9);
+    })) {
+      return res.status(409).json({ success: false, error: 'رقم الهاتف هذا مسجل بالفعل بحساب آخر، يرجى تسجيل الدخول' });
     }
 
     const salt = crypto.randomBytes(16).toString('hex');
@@ -1344,7 +1372,7 @@ app.post('/api/auth/register', (req, res) => {
       uid,
       displayName: cleanDisplayName,
       handle: cleanHandle,
-      phoneNumber: normPhone || undefined,
+      phoneNumber: normPhone,
       email: email ? String(email).toLowerCase().trim() : undefined,
       passwordHash,
       salt,
@@ -1436,6 +1464,137 @@ app.post('/api/auth/login', (req, res) => {
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Login failed' });
+  }
+});
+
+// 2.1 Reset Password with Verified Phone Number
+app.post('/api/auth/reset-password', (req, res) => {
+  try {
+    const { identifier, phoneNumber, newPassword } = req.body || {};
+    const rawId = String(identifier || '').trim();
+    const rawPhone = String(phoneNumber || '').trim();
+    const rawPass = String(newPassword || '');
+
+    if (!rawId) {
+      return res.status(400).json({ success: false, error: 'يرجى إدخال اسم المستخدم أو هاندل الحساب' });
+    }
+    if (!rawPhone) {
+      return res.status(400).json({ success: false, error: 'يرجى إدخال رقم هاتفك المسجل لتأكيد هويتك' });
+    }
+    if (!rawPass || rawPass.length < 6) {
+      return res.status(400).json({ success: false, error: 'كلمة المرور الجديدة يجب أن لا تقل عن 6 أحرف' });
+    }
+
+    const cleanDigits = rawPhone.replace(/\D/g, '');
+    const cleanLast9 = cleanDigits.slice(-9);
+
+    const dbState = readServerDb() || {};
+    const users = dbState.users || [];
+
+    const normId = rawId.toLowerCase().replace(/^@/, '');
+
+    // Find user by handle or phone
+    const user = users.find((u) => {
+      const uHandle = u.handle.toLowerCase().replace(/^@/, '');
+      return uHandle === normId || (u.phoneNumber && u.phoneNumber.replace(/\D/g, '').endsWith(cleanLast9));
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'لم يتم العثور على حساب بهذه البيانات' });
+    }
+
+    // Verify phone match
+    const userPhoneDigits = (user.phoneNumber || '').replace(/\D/g, '');
+    if (!userPhoneDigits || !userPhoneDigits.endsWith(cleanLast9)) {
+      return res.status(400).json({ success: false, error: 'رقم الهاتف المدخل غير مطابق لرقم الهاتف المسجل لهذا الحساب' });
+    }
+
+    if (user.isBanned) {
+      return res.status(403).json({ success: false, error: 'هذا الحساب محظور نهائياً ولا يمكن استعادته' });
+    }
+
+    const salt = crypto.randomBytes(16).toString('hex');
+    const passwordHash = hashPassword(rawPass, salt);
+
+    const updatedUsers = users.map((u) => {
+      if (u.uid === user.uid) {
+        return { ...u, passwordHash, salt, updatedAt: new Date().toISOString() };
+      }
+      return u;
+    });
+
+    writeServerDb({ users: updatedUsers });
+
+    const updatedUser = updatedUsers.find((u) => u.uid === user.uid)!;
+    const token = 'tok_' + user.uid + '_' + crypto.randomBytes(16).toString('hex');
+
+    return res.json({
+      success: true,
+      message: 'تم تعيين كلمة المرور الجديدة بنجاح! تم تسجيل دخولك الآن.',
+      user: generateSafeUser(updatedUser),
+      token,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Password reset failed' });
+  }
+});
+
+// 2.2 Update User Profile (Avatar Photo, Display Name, Hub)
+app.post('/api/auth/update-profile', (req, res) => {
+  try {
+    const { uid, photoURL, displayName, preferredHub } = req.body || {};
+    if (!uid) {
+      return res.status(400).json({ success: false, error: 'uid required' });
+    }
+
+    const dbState = readServerDb() || {};
+    const users = dbState.users || [];
+    const targetUser = users.find((u) => u.uid === uid);
+    if (!targetUser) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const updatedUser = {
+      ...targetUser,
+      photoURL: photoURL !== undefined ? String(photoURL) : targetUser.photoURL,
+      displayName: displayName !== undefined ? String(displayName).trim() : targetUser.displayName,
+      preferredHub: preferredHub !== undefined ? String(preferredHub).trim() : targetUser.preferredHub,
+    };
+
+    const updatedUsers = users.map((u) => (u.uid === uid ? updatedUser : u));
+
+    // Also update owner avatar & location on all garments owned by this user
+    let garments = dbState.garments || [];
+    if (photoURL || preferredHub || displayName) {
+      garments = garments.map((g) => {
+        if (g.owner?.handle?.toLowerCase() === targetUser.handle.toLowerCase()) {
+          return {
+            ...g,
+            owner: {
+              ...g.owner,
+              name: displayName || g.owner.name,
+              avatarUrl: photoURL || g.owner.avatarUrl,
+              location: preferredHub || g.owner.location,
+            },
+            city: preferredHub || g.city,
+          };
+        }
+        return g;
+      });
+    }
+
+    writeServerDb({
+      users: updatedUsers,
+      garments,
+    });
+
+    return res.json({
+      success: true,
+      message: 'تم تحديث البيانات والصورة بنجاح',
+      user: generateSafeUser(updatedUser),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Update profile failed' });
   }
 });
 

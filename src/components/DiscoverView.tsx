@@ -1,14 +1,18 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Garment, WardrobeItem, FilterSettings } from '../types/swap';
+import { Garment, WardrobeItem, FilterSettings, HubLocation } from '../types/swap';
 import { soundFX, triggerHaptic } from '../hooks/useSoundFX';
 import { BrutalistBurst } from './BrutalistBurst';
 import { useLanguage } from '../i18n/LanguageContext';
 import { UserTasteProfile, rankCairoFeedEngine, loadTasteProfile } from '../services/recommendationEngine';
+import { HUB_LOCATIONS } from '../data/mockData';
+import { calculateHaversineDistanceKm, formatArabicDistance } from '../utils/swapLogic';
 
 interface DiscoverViewProps {
   garments: Garment[];
   userWardrobe?: WardrobeItem[];
   currentIndex: number;
+  currentHub?: HubLocation;
+  onOpenAddItem?: () => void;
   onSwipeRight: (garment: Garment) => void;
   onSwipeLeft: (garment: Garment) => void;
   onToggleBookmark: (garment: Garment) => void;
@@ -25,6 +29,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   garments,
   userWardrobe = [],
   currentIndex,
+  currentHub,
+  onOpenAddItem,
   onSwipeRight,
   onSwipeLeft,
   onToggleBookmark,
@@ -85,6 +91,36 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const flashToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2400);
+  };
+
+  const getGarmentRealDistance = (garment: Garment): string => {
+    if (!currentHub) return garment.distance || 'على بعد 300 متر';
+
+    const garmentLoc = (garment.owner?.location || garment.city || '').toLowerCase();
+    const garmentHub = HUB_LOCATIONS.find(
+      (h) =>
+        garmentLoc.includes(h.name.toLowerCase()) ||
+        garmentLoc.includes(h.shortCode.toLowerCase()) ||
+        h.city.toLowerCase().includes(garmentLoc)
+    );
+
+    if (
+      garmentHub &&
+      currentHub.lat != null &&
+      currentHub.lng != null &&
+      garmentHub.lat != null &&
+      garmentHub.lng != null
+    ) {
+      const distKm = calculateHaversineDistanceKm(
+        currentHub.lat,
+        currentHub.lng,
+        garmentHub.lat,
+        garmentHub.lng
+      );
+      return formatArabicDistance(distKm);
+    }
+
+    return garment.distance || 'على بعد 300 متر';
   };
 
   const handleOpenTradeRequest = (garment: Garment) => {
@@ -237,22 +273,34 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
         {/* Empty State when filter yields 0 matches */}
         {filteredAndSortedGarments.length === 0 ? (
-          <div className="py-16 flex flex-col items-center justify-center text-center">
-            <div className="w-14 h-14 rounded-full bg-[#201f21] flex items-center justify-center text-[#caf300] mb-3 border border-white/10">
-              <span className="material-symbols-outlined text-2xl">travel_explore</span>
+          <div className="py-20 px-4 flex flex-col items-center justify-center text-center max-w-sm mx-auto">
+            <div className="w-16 h-16 rounded-2xl bg-[#caf300]/10 flex items-center justify-center text-[#caf300] mb-4 border border-[#caf300]/30 shadow-[0_0_20px_rgba(202,243,0,0.15)]">
+              <span className="material-symbols-outlined text-3xl">checkroom</span>
             </div>
-            <h3 className="font-display text-sm font-bold text-white uppercase tracking-tight">
-              {t('noPiecesMatching')}
+            <h3 className="font-display text-base font-bold text-white uppercase tracking-tight">
+              السوق في انتظار أول قطعة منك! ⚡
             </h3>
-            <p className="font-sans text-xs text-[#c5c9ac] mt-1 max-w-xs">
-              {t('noPiecesHint')}
+            <p className="font-mono text-xs text-[#c5c9ac] mt-2 leading-relaxed">
+              كن أول من يرفع قطعة من دولابه في {currentHub?.name || 'منطقتك'}، وابدأ التبادل الحقيقي مع أقرب سوابرز حواليك!
             </p>
+            {onOpenAddItem && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('medium');
+                  soundFX.playClick();
+                  onOpenAddItem();
+                }}
+                className="mt-5 w-full py-3.5 px-4 rounded-xl bg-[#caf300] text-[#0c0b0e] font-mono text-xs font-black uppercase tracking-wider hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(202,243,0,0.25)]"
+              >
+                <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                <span>إضافة أول قطعة لدولابك الآن 👕</span>
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => {
-                handleResetFilters();
-              }}
-              className="mt-3 px-3.5 py-1.5 rounded-lg bg-[#caf300] text-[#171e00] font-mono text-[11px] font-bold uppercase cursor-pointer"
+              onClick={handleResetFilters}
+              className="mt-3 font-mono text-[11px] text-[#8f9378] hover:text-[#caf300] underline cursor-pointer"
             >
               {t('resetFilters')}
             </button>
@@ -301,7 +349,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#131315]/90 border border-[#caf300]/40 backdrop-blur-md">
                       <span className="material-symbols-outlined text-[#caf300] text-[13px]">location_on</span>
                       <span className="font-mono text-[10.5px] font-bold text-white">
-                        {activeGarment.distance}
+                        {getGarmentRealDistance(activeGarment)}
                       </span>
                     </div>
 
@@ -402,20 +450,43 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     </h2>
 
                     {/* Owner Row */}
-                    <div className="flex items-center justify-between pt-1.5 border-t border-white/10">
-                      <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <img
-                          src={activeGarment.owner.avatarUrl}
+                          src={
+                            activeGarment.owner.avatarUrl ||
+                            'https://api.dicebear.com/7.x/bottts/svg?seed=' + activeGarment.owner.handle
+                          }
                           alt={activeGarment.owner.name}
-                          className="w-6 h-6 rounded-full object-cover ring-1 ring-[#caf300]/50"
+                          className="w-8 h-8 rounded-full object-cover ring-2 ring-[#caf300]/60 shrink-0"
                         />
-                        <span className="font-mono text-xs text-white font-medium truncate">
-                          @{activeGarment.owner.handle}
+                        <div className="min-w-0 flex flex-col">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-display text-xs font-bold text-white truncate">
+                              {activeGarment.owner.name}
+                            </span>
+                            <span className="font-mono text-[10.5px] text-[#caf300] font-bold">
+                              {activeGarment.owner.handle}
+                            </span>
+                          </div>
+                          <span className="font-mono text-[10px] text-[#c5c9ac] truncate flex items-center gap-1 mt-0.5">
+                            <span className="material-symbols-outlined text-[12px] text-[#caf300]">location_on</span>
+                            <span>{activeGarment.owner.location || activeGarment.city || currentHub?.name || 'مدينة السلام'}</span>
+                            <span>•</span>
+                            <span className="text-[#caf300] font-bold">{getGarmentRealDistance(activeGarment)}</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end shrink-0 font-mono">
+                        <div className="flex items-center gap-1 text-[11px] text-[#caf300] font-bold">
+                          <span>★</span>
+                          <span>{activeGarment.owner.rating || '5.0'}</span>
+                        </div>
+                        <span className="text-[#8f9378] text-[9.5px]">
+                          ({activeGarment.owner.swapCount || 0} تبديل)
                         </span>
                       </div>
-                      <span className="font-mono text-[10px] text-[#caf300] font-bold">
-                        {activeGarment.owner.swapCount} Swaps • {activeGarment.owner.rating}★
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -474,7 +545,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     >
                       <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-[#131315]/90 backdrop-blur-md border border-[#caf300]/40 text-[#caf300] font-mono text-[9.5px] font-bold flex items-center gap-0.5">
                         <span className="material-symbols-outlined text-[11px]">near_me</span>
-                        <span>{garment.distance}</span>
+                        <span>{getGarmentRealDistance(garment)}</span>
                       </div>
                       <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-[#131315]/80 backdrop-blur-md text-white font-mono text-[10px] font-bold">
                         {garment.estValue} EGP
@@ -492,8 +563,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                         >
                           {garment.title}
                         </h4>
-                        <p className="font-mono text-[10px] text-[#8f9378] truncate mt-0.5">
-                          by {garment.owner.handle}
+                        <p className="font-mono text-[10px] text-[#caf300] truncate mt-0.5 flex items-center gap-1">
+                          <span>{garment.owner.handle}</span>
+                          <span className="text-[#8f9378]">•</span>
+                          <span className="text-[#c5c9ac]">{garment.owner.location || garment.city || 'القاهرة'}</span>
                         </p>
                       </div>
 

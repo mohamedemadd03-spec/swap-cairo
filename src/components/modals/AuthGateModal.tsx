@@ -15,8 +15,8 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
   const { language } = useLanguage();
   const isAr = language === 'ar';
 
-  // Mode: 'signin' (Username/Phone + Password) vs 'signup' (Handle + Phone + Password)
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  // Mode: 'signin' | 'signup' | 'forgot'
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
 
   // Sign In state
   const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -28,6 +28,12 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
   const [registerPhone, setRegisterPhone] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+
+  // Forgot Password state
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotPhone, setForgotPhone] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
 
   // Status & Feedback
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -65,6 +71,49 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
     } catch (err: any) {
       triggerHaptic('error');
       setErrorMsg(err?.message || (isAr ? 'بيانات الدخول غير صحيحة، يرجى التأكد' : 'Invalid login credentials'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 3. Reset Password with Phone Number Identity Verification
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    const cleanId = forgotIdentifier.trim();
+    const cleanPhone = forgotPhone.trim();
+
+    if (!cleanId) {
+      setErrorMsg(isAr ? 'يرجى كتابة اسم المستخدم أو هاندل الحساب' : 'Please enter your username');
+      triggerHaptic('error');
+      return;
+    }
+
+    if (!cleanPhone || cleanPhone.replace(/\D/g, '').length < 9) {
+      setErrorMsg(isAr ? 'يرجى إدخال رقم هاتفك المسجل لتأكيد هويتك' : 'Please enter your registered phone number');
+      triggerHaptic('error');
+      return;
+    }
+
+    if (!forgotNewPassword || forgotNewPassword.length < 6) {
+      setErrorMsg(isAr ? 'كلمة المرور الجديدة يجب أن لا تقل عن 6 أحرف' : 'Password must be at least 6 characters');
+      triggerHaptic('error');
+      return;
+    }
+
+    setIsSubmitting(true);
+    triggerHaptic('medium');
+    soundFX.playClick();
+
+    try {
+      const user = await authService.resetPassword(cleanId, cleanPhone, forgotNewPassword);
+      triggerHaptic('trade');
+      soundFX.playCash();
+      onAuthSuccess(user);
+    } catch (err: any) {
+      triggerHaptic('error');
+      setErrorMsg(err?.message || (isAr ? 'فشل استعادة الحساب، تأكد من صحة رقم الهاتف والاسم' : 'Failed to reset password'));
     } finally {
       setIsSubmitting(false);
     }
@@ -226,6 +275,20 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
               </div>
             </div>
 
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('forgot');
+                  setErrorMsg(null);
+                  setForgotIdentifier(loginIdentifier);
+                }}
+                className="font-mono text-[11px] text-[#8f9378] hover:text-[#caf300] transition-colors cursor-pointer"
+              >
+                {isAr ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={isSubmitting}
@@ -328,6 +391,90 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({
               className="text-center font-mono text-xs text-[#8f9378] hover:text-[#caf300] transition-colors cursor-pointer py-1"
             >
               {isAr ? 'لديك حساب بالفعل؟ سجل دخولك هنا' : 'Already have an account? Sign in here'}
+            </button>
+          </form>
+        )}
+
+        {/* ---------------- MODE 3: FORGOT PASSWORD ---------------- */}
+        {mode === 'forgot' && (
+          <form onSubmit={handleResetPassword} className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-1 font-mono">
+              <label className="text-[11px] font-bold text-[#c5c9ac] uppercase flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-[#caf300]">badge</span>
+                <span>{isAr ? 'اسم المستخدم أو الهاندل' : 'Username or Handle'}</span>
+              </label>
+              <input
+                type="text"
+                autoFocus
+                value={forgotIdentifier}
+                onChange={(e) => setForgotIdentifier(e.target.value)}
+                placeholder={isAr ? '@ziad_cairo' : '@handle'}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c1b1f] border border-white/10 focus:border-[#caf300] text-white font-mono text-sm placeholder:text-[#5f634b] outline-none transition-colors"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 font-mono">
+              <label className="text-[11px] font-bold text-[#c5c9ac] uppercase flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-[#caf300]">call</span>
+                <span>{isAr ? 'رقم هاتفك المسجل لتأكيد هويتك' : 'Registered Phone Number'}</span>
+              </label>
+              <div className="flex items-center rounded-xl bg-[#1c1b1f] border border-white/10 focus-within:border-[#caf300] overflow-hidden">
+                <span className="px-3 py-2.5 font-mono text-xs font-bold text-[#caf300] bg-white/5 border-r border-white/10 shrink-0">
+                  +20 🇪🇬
+                </span>
+                <input
+                  type="tel"
+                  value={forgotPhone}
+                  onChange={(e) => setForgotPhone(e.target.value)}
+                  placeholder="01012345678"
+                  className="w-full px-3 py-2.5 bg-transparent text-white font-mono text-sm placeholder:text-[#5f634b] outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1 font-mono">
+              <label className="text-[11px] font-bold text-[#c5c9ac] uppercase flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-[#caf300]">lock_reset</span>
+                <span>{isAr ? 'كلمة المرور الجديدة' : 'New Password'}</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showForgotNewPassword ? 'text' : 'password'}
+                  value={forgotNewPassword}
+                  onChange={(e) => setForgotNewPassword(e.target.value)}
+                  placeholder={isAr ? '6 أحرف على الأقل' : 'At least 6 characters'}
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-[#1c1b1f] border border-white/10 focus:border-[#caf300] text-white font-mono text-sm placeholder:text-[#5f634b] outline-none transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowForgotNewPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8f9378] hover:text-[#caf300] cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    {showForgotNewPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="mt-1 w-full py-3 px-4 rounded-xl bg-[#caf300] text-[#0c0b0e] font-mono text-sm font-black uppercase tracking-wider hover:brightness-110 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(202,243,0,0.3)] disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">key</span>
+              <span>{isSubmitting ? (isAr ? 'جاري التحقق والتحديث...' : 'Updating...') : (isAr ? 'تعيين كلمة المرور الجديدة ⚡' : 'SET NEW PASSWORD ⚡')}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMode('signin');
+                setErrorMsg(null);
+              }}
+              className="text-center font-mono text-xs text-[#8f9378] hover:text-[#caf300] transition-colors cursor-pointer py-1"
+            >
+              {isAr ? 'الرجوع لتسجيل الدخول' : 'Back to sign in'}
             </button>
           </form>
         )}

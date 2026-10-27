@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { User } from 'firebase/auth';
 import { Garment, HubLocation, SwapOffer } from '../types/swap';
 import { soundFX, triggerHaptic } from '../hooks/useSoundFX';
@@ -6,6 +6,7 @@ import { hapticEngine } from '../services/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
 import { PWAInstallButton } from './PWAInstallButton';
 import { calculateUserRank } from '../utils/progression';
+import { authService } from '../services/authService';
 
 interface ProfileViewProps {
   currentHub: HubLocation;
@@ -42,7 +43,70 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [activeSection, setActiveSection] = useState<'hubs' | 'receipts' | 'watchlist' | 'charter'>('hubs');
   const { language, setLanguage, toggleLanguage, t } = useLanguage();
 
+  const [avatarUrl, setAvatarUrl] = useState(currentUser?.photoURL || '');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const rankInfo = calculateUserRank(userTrustPoints);
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const rawBase64 = event.target?.result as string;
+      if (!rawBase64) {
+        setIsUploadingAvatar(false);
+        return;
+      }
+
+      const img = new Image();
+      img.src = rawBase64;
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 320;
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+        setAvatarUrl(compressedDataUrl);
+        triggerHaptic('trade');
+        soundFX.playCash();
+
+        if (currentUser?.uid) {
+          const updated = { ...currentUser, photoURL: compressedDataUrl };
+          authService.setStoredUser(updated);
+          try {
+            await fetch('/api/auth/update-profile', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uid: currentUser.uid, photoURL: compressedDataUrl }),
+            });
+          } catch (err) {
+            console.warn('Profile sync warning:', err);
+          }
+        }
+        setIsUploadingAvatar(false);
+      };
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <main className="flex-1 flex flex-col relative w-full pt-16 pb-28 bg-[#131315] max-w-md mx-auto">
@@ -50,42 +114,57 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {/* Profile Header */}
         <section className="flex items-center justify-between pt-2">
           <h1 className="font-display font-bold text-xl uppercase tracking-tight text-white">
-            {t('swapperPassport')}
+            البروفايل الشخصي
           </h1>
           <span className="px-2.5 py-0.5 bg-[#caf300]/15 text-[#caf300] font-mono font-bold text-[10.5px] uppercase rounded-full border border-[#caf300]/30">
             {t('level')} {rankInfo.level} • {rankInfo.currentPoints} {t('pts')}
           </span>
         </section>
 
-        {/* User Card + Gamified Level Progress */}
+        {/* User Card + Interactive Photo Upload */}
         <div className="p-3.5 rounded-xl bg-[#201f21] border border-[#26262e] flex flex-col gap-3.5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="relative">
+            <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()} title="اضغط لتغيير الصورة الشخصية">
               <img
                 src={
+                  avatarUrl ||
                   currentUser?.photoURL ||
-                  'https://lh3.googleusercontent.com/aida-public/AB6AXuDiBFlwRfyYNXXzMMHog4cnQQF4aB7aMTx6jmYgc1oqDyInrgqUHMU_dEBicHujxi6YICVBf-I-dChd_1HAp5YJG5jmU24PI08rtPjdiQOxaFyGGJLHPgqfAMdWprP8Z8Ar7uBKcTHyORErqdcBr_XjOMJ_CLTid-_SeoHMjHqi_pkw1dXC3dZWEKid0tRCavzL4tn8mVFj3sIxSjv6TIMzCDbGoHRiZkTwG8vDF1ZxorcBHjzHnUVq'
+                  'https://api.dicebear.com/7.x/bottts/svg?seed=' + (currentUser?.handle || 'cairo')
                 }
                 alt="Profile avatar"
-                className="w-14 h-14 rounded-full object-cover ring-2 ring-[#caf300]"
+                className="w-16 h-16 rounded-full object-cover ring-2 ring-[#caf300] transition-transform active:scale-95"
               />
-              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-[#caf300] border-2 border-[#131315]"></span>
+              <button
+                type="button"
+                className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#caf300] text-[#0c0b0e] flex items-center justify-center border-2 border-[#131315] shadow-md hover:scale-110 transition-transform"
+                title="تغيير صورتك"
+              >
+                <span className="material-symbols-outlined text-[13px] font-bold">photo_camera</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarFileChange}
+                className="hidden"
+              />
             </div>
 
             <div className="flex flex-col min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="font-display font-bold text-base text-white truncate">
-                  {currentUser?.displayName || '@cairo_swapper'}
+                  {currentUser?.displayName || currentUser?.handle || '@cairo_swapper'}
                 </span>
-                <span className="px-1.5 py-0.2 bg-[#caf300] text-[#171e00] font-mono text-[9px] font-bold rounded">
-                  {currentUser?.phoneNumber ? 'PHONE VERIFIED' : t('verified')}
+                <span className="px-1.5 py-0.2 bg-[#caf300] text-[#171e00] font-mono text-[9.5px] font-bold rounded">
+                  {currentUser?.phoneNumber ? 'رقم موثق 🇪🇬' : 'موثق'}
                 </span>
               </div>
-              <span className="font-mono text-xs text-[#c5c9ac] truncate">
-                {currentUser?.phoneNumber || currentUser?.email || t('barterTagline')}
+              <span className="font-mono text-xs text-[#c5c9ac] truncate mt-0.5">
+                {currentUser?.phoneNumber ? `📞 ${currentUser.phoneNumber}` : (currentUser?.handle || '@ziad_cairo')}
               </span>
-              <span className="font-mono text-[11px] text-[#caf300] mt-0.5">
-                {t('defaultSpot')} {currentHub.name}
+              <span className="font-mono text-[11px] text-[#caf300] mt-0.5 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[13px]">location_on</span>
+                <span>نقطتك: {currentHub.name}</span>
               </span>
             </div>
           </div>
@@ -94,10 +173,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div className="p-2.5 rounded-lg bg-[#131315] border border-white/5 flex flex-col gap-1.5">
             <div className="flex items-center justify-between font-mono text-[10px]">
               <span className="text-[#caf300] font-bold uppercase">
-                {language === 'ar' ? rankInfo.currentTier.titleAr : rankInfo.currentTier.titleEn} (LVL {rankInfo.level})
+                {rankInfo.currentTier.titleAr} (المستوى {rankInfo.level})
               </span>
               <span className="text-[#c5c9ac]">
-                {rankInfo.nextTier ? `${rankInfo.pointsToNext} ${t('toNextRank')}` : 'MAX LEVEL'}
+                {rankInfo.nextTier ? `${rankInfo.pointsToNext} نقطة للمستوى التالي` : 'أعلى تصنيف'}
               </span>
             </div>
             <div className="w-full h-2 rounded-full bg-[#201f21] overflow-hidden">
@@ -107,26 +186,26 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               />
             </div>
             <span className="font-mono text-[9.5px] text-[#8f9378]">
-              ⚡ {language === 'ar' ? rankInfo.currentTier.perkAr : rankInfo.currentTier.perkEn}
+              ⚡ {rankInfo.currentTier.perkAr}
             </span>
           </div>
 
           {/* Environmental & Financial Impact Bento */}
           <div className="grid grid-cols-3 gap-2 border-t border-white/5 pt-3 text-center font-mono">
             <div className="p-2 bg-[#1c1b1d] rounded-lg border border-white/5">
-              <span className="text-[10px] text-[#c5c9ac] uppercase block">{t('swapsCount')}</span>
+              <span className="text-[10px] text-[#c5c9ac] uppercase block">التبادلات</span>
               <span className="text-base font-bold text-white">{completedSwapsCount}</span>
               <span className="text-[9px] text-[#caf300] block">
-                {completedSwapsCount > 0 ? '★ 5.0' : 'NEW'}
+                {completedSwapsCount > 0 ? '★ 5.0' : 'جديد'}
               </span>
             </div>
             <div className="p-2 bg-[#1c1b1d] rounded-lg border border-white/5">
-              <span className="text-[10px] text-[#c5c9ac] uppercase block">{t('trustScore')}</span>
+              <span className="text-[10px] text-[#c5c9ac] uppercase block">نقاط الثقة</span>
               <span className="text-base font-bold text-[#caf300]">{userTrustPoints}</span>
-              <span className="text-[9px] text-[#c5c9ac] block">{t('perQrScan')}</span>
+              <span className="text-[9px] text-[#c5c9ac] block">+50 كل مقابلة</span>
             </div>
             <div className="p-2 bg-[#1c1b1d] rounded-lg border border-white/5">
-              <span className="text-[10px] text-[#c5c9ac] uppercase block">Saved</span>
+              <span className="text-[10px] text-[#c5c9ac] uppercase block">وفرت</span>
               <span className="text-base font-bold text-white">
                 {totalSavedAmount && totalSavedAmount > 0
                   ? totalSavedAmount >= 1000
@@ -134,7 +213,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     : `${totalSavedAmount}`
                   : '0'}
               </span>
-              <span className="text-[9px] text-[#c5c9ac] block">EGP vs Retail</span>
+              <span className="text-[9px] text-[#c5c9ac] block">جنيه مقارنة بالسوق</span>
             </div>
           </div>
         </div>
@@ -215,7 +294,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <section className="flex flex-col gap-2 font-mono animate-in fade-in">
             {completedOffers.length === 0 ? (
               <div className="p-6 rounded-xl bg-[#201f21] border border-[#26262e] text-center text-xs text-[#c5c9ac]">
-                No Handshake receipts yet. Complete an in-person scan in Deals to log your swap pass here.
+                لا توجد إيصالات هاندشيك مسجلة بعد. أكمل مقابلة تبادل لتسجيل أول إيصال رسمي هنا.
               </div>
             ) : (
               completedOffers.map((offer) => (
@@ -227,12 +306,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     <span className="text-[#caf300] font-bold uppercase flex items-center gap-1">
                       <span className="material-symbols-outlined text-[13px]">handshake</span>
                       <span>
-                        {offer.status === 'completed' ? 'Verified Handshake' : 'Locked Deal'} // #
+                        {offer.status === 'completed' ? 'هاندشيك موثق' : 'صفقة مؤكدة'} // #
                         {offer.securityPassCode || 'SWP-7740'}
                       </span>
                     </span>
                     <span className="px-2 py-0.5 rounded bg-[#caf300]/15 text-[#caf300] font-bold">
-                      +50 PTS
+                      +50 نقطة
                     </span>
                   </div>
 
@@ -245,7 +324,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       />
                       <div className="min-w-0">
                         <span className="text-[8.5px] text-[#8f9378] uppercase block">
-                          The One Who Gives
+                          الطرف الراسل
                         </span>
                         <span className="font-sans text-xs font-bold text-white truncate block">
                           {offer.yourItem.title}
@@ -261,7 +340,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       />
                       <div className="min-w-0">
                         <span className="text-[8.5px] text-[#caf300] uppercase block font-bold">
-                          The One Who Receives
+                          الطرف المستلم
                         </span>
                         <span className="font-sans text-xs font-bold text-white truncate block">
                           {offer.theirItem.title}
@@ -286,12 +365,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       </div>
                     </div>
                     <span className="px-2 py-0.5 rounded bg-[#caf300]/20 text-[#caf300] font-mono text-[9px] font-bold uppercase shrink-0">
-                      +50 PTS
+                      +50 نقطة
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-[9.5px] text-[#c5c9ac]">
-                    <span>Partner: @{offer.partner.handle}</span>
+                    <span>الطرف الآخر: @{offer.partner.handle}</span>
                     <span>{offer.hubLocation || currentHub.name}</span>
                   </div>
                 </div>
@@ -512,9 +591,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {/* Account Session Controls */}
         <section className="p-3.5 rounded-xl bg-[#201f21] border border-[#26262e] flex flex-col gap-2.5 shadow-sm font-mono">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-white font-bold uppercase">// ACCOUNT SESSION</span>
-            <span className="text-[#8f9378] text-[10px]">
-              {currentUser?.phoneNumber || 'Verified Phone'}
+            <span className="text-white font-bold uppercase">إدارة الحساب والجلسة</span>
+            <span className="text-[#caf300] text-[10px]">
+              {currentUser?.phoneNumber ? `موثق: ${currentUser.phoneNumber}` : 'حساب نشط'}
             </span>
           </div>
 
@@ -529,7 +608,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               className="w-full py-2.5 px-3 rounded-xl bg-[#131315] hover:bg-red-500/20 text-[#8f9378] hover:text-red-300 border border-white/10 text-xs font-bold uppercase cursor-pointer transition-colors flex items-center justify-center gap-2 active:scale-98"
             >
               <span className="material-symbols-outlined text-[16px]">logout</span>
-              <span>{language === 'ar' ? 'تسجيل الخروج من الحساب' : 'SIGN OUT'}</span>
+              <span>تسجيل الخروج من الحساب</span>
             </button>
           )}
 
