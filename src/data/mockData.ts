@@ -276,7 +276,7 @@ export const INITIAL_GARMENTS: Garment[] = [
   },
 ];
 
-export const INITIAL_WARDROBE: WardrobeItem[] = [
+export const SEED_ARCHIVE_WARDROBE: WardrobeItem[] = [
   {
     id: 'wardrobe-1',
     title: 'Carhartt Baggy Carpenter',
@@ -407,6 +407,9 @@ export const INITIAL_WARDROBE: WardrobeItem[] = [
   },
 ];
 
+// Production default: fresh user starts with an empty closet ready to upload their own pieces
+export const INITIAL_WARDROBE: WardrobeItem[] = [];
+
 export const INITIAL_WISHLIST: WishlistItem[] = [
   {
     id: 'wish-1',
@@ -446,7 +449,7 @@ export const INITIAL_WISHLIST: WishlistItem[] = [
   },
 ];
 
-export const ACTIVE_SWAP_OFFERS: SwapOffer[] = [
+export const SEED_ARCHIVE_OFFERS: SwapOffer[] = [
   {
     id: 'swap-01',
     partner: {
@@ -579,25 +582,10 @@ export const ACTIVE_SWAP_OFFERS: SwapOffer[] = [
   },
 ];
 
-export const INITIAL_BUYOUT_ORDERS: BuyoutOrder[] = [
-  {
-    id: 'order-cai-9041',
-    garment: INITIAL_GARMENTS[0],
-    buyerHandle: '@youssef_fits',
-    purchasePrice: 500,
-    currency: 'EGP',
-    paymentMethod: 'instapay',
-    inspectionRequested: true,
-    inspectionFee: 35,
-    totalAmount: 535,
-    pickupHub: 'SWAPZ Maadi Hub (Degla St 213)',
-    securityPassCode: 'ESCROW-CAI-9041',
-    pickupPin: '849201',
-    status: 'confirmed_escrow',
-    timestamp: '2 hours ago',
-    estimatedReadyDate: 'Ready for pickup today until 10:00 PM',
-  },
-];
+// Production default: fresh user starts with zero active deals until they initiate or receive one
+export const ACTIVE_SWAP_OFFERS: SwapOffer[] = [];
+
+export const INITIAL_BUYOUT_ORDERS: BuyoutOrder[] = [];
 
 export const INITIAL_LEADERBOARD: LeaderboardEntry[] = [
   {
@@ -672,39 +660,51 @@ export const HUB_LOCATIONS: HubLocation[] = [
   },
   {
     id: 'hub-cairo-zamalek',
-    name: 'Zamalek Hub (Brazil St 14)',
+    name: 'Holm Café & Bakery Hub',
     shortCode: 'ZAMALEK • BRAZIL',
     city: 'Cairo, Egypt',
     distance: '6 KM',
     address: '14 Brazil Street, Zamalek, Cairo',
     activeSwappers: 14,
-    hours: '1:00 PM – 11:00 PM Daily',
+    hours: '9:00 AM – 11:00 PM Daily',
     lat: 30.0609,
     lng: 31.2197,
   },
   {
     id: 'hub-cairo-newcairo',
-    name: 'New Cairo Waterway Station',
+    name: 'The Waterway Station (5A Promenade)',
     shortCode: 'NEW CAIRO • WATERWAY',
     city: 'Cairo, Egypt',
     distance: '14 KM',
     address: 'The Waterway, Northern Investors, New Cairo',
     activeSwappers: 22,
-    hours: '12:00 PM – 11:30 PM Daily',
+    hours: '11:00 AM – 12:00 AM Daily',
     lat: 30.0419,
     lng: 31.4758,
   },
   {
     id: 'hub-cairo-korba',
-    name: 'Heliopolis Korba Hub',
-    shortCode: 'KORBA • BAGHDAD',
+    name: 'Heliopolis Korba Heritage Hub',
+    shortCode: 'HELIOPOLIS • KORBA',
     city: 'Cairo, Egypt',
     distance: '16 KM',
     address: 'Baghdad Street, Korba, Heliopolis',
-    activeSwappers: 9,
-    hours: '11:00 AM – 10:00 PM Daily',
+    activeSwappers: 12,
+    hours: '10:00 AM – 11:00 PM Daily',
     lat: 30.0911,
     lng: 31.3255,
+  },
+  {
+    id: 'hub-cairo-zayed',
+    name: 'Arkan Plaza Hub (West Cairo)',
+    shortCode: 'ZAYED • ARKAN',
+    city: 'Giza / Zayed, Egypt',
+    distance: '21 KM',
+    address: 'Arkan Plaza, 26th of July Corridor, Sheikh Zayed',
+    activeSwappers: 16,
+    hours: '10:00 AM – 12:00 AM Daily',
+    lat: 30.0163,
+    lng: 30.9850,
   },
   {
     id: 'hub-cairo-lockers',
@@ -713,7 +713,7 @@ export const HUB_LOCATIONS: HubLocation[] = [
     city: 'Cairo, Egypt',
     distance: '1.2 KM',
     address: 'Degla Square Pods, Maadi, Cairo',
-    activeSwappers: 7,
+    activeSwappers: 8,
     hours: '24/7 Access',
     lat: 29.9585,
     lng: 31.2589,

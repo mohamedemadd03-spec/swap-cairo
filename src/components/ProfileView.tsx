@@ -5,6 +5,7 @@ import { soundFX, triggerHaptic } from '../hooks/useSoundFX';
 import { hapticEngine } from '../services/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
 import { PWAInstallButton } from './PWAInstallButton';
+import { calculateUserRank } from '../utils/progression';
 
 interface ProfileViewProps {
   currentHub: HubLocation;
@@ -16,6 +17,7 @@ interface ProfileViewProps {
   currentUser?: any | null;
   completedSwapsCount?: number;
   completedOffers?: SwapOffer[];
+  totalSavedAmount?: number;
   onClearDemoCloset?: () => void;
   onResetDemoData?: () => void;
   onSignOut?: () => void;
@@ -27,10 +29,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onSelectHub,
   stashedGarments,
   onSelectGarment,
-  userTrustPoints = 450,
+  userTrustPoints = 50,
   currentUser,
-  completedSwapsCount = 24,
+  completedSwapsCount = 0,
   completedOffers = [],
+  totalSavedAmount = 0,
   onClearDemoCloset,
   onResetDemoData,
   onSignOut,
@@ -39,8 +42,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [activeSection, setActiveSection] = useState<'hubs' | 'receipts' | 'watchlist' | 'charter'>('hubs');
   const { language, setLanguage, toggleLanguage, t } = useLanguage();
 
-  const level = Math.floor(userTrustPoints / 100);
-  const nextLevelProgress = userTrustPoints % 100;
+  const rankInfo = calculateUserRank(userTrustPoints);
 
   return (
     <main className="flex-1 flex flex-col relative w-full pt-16 pb-28 bg-[#131315] max-w-md mx-auto">
@@ -51,7 +53,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             {t('swapperPassport')}
           </h1>
           <span className="px-2.5 py-0.5 bg-[#caf300]/15 text-[#caf300] font-mono font-bold text-[10.5px] uppercase rounded-full border border-[#caf300]/30">
-            {t('level')} {level} • {userTrustPoints} {t('pts')}
+            {t('level')} {rankInfo.level} • {rankInfo.currentPoints} {t('pts')}
           </span>
         </section>
 
@@ -76,11 +78,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   {currentUser?.displayName || '@cairo_swapper'}
                 </span>
                 <span className="px-1.5 py-0.2 bg-[#caf300] text-[#171e00] font-mono text-[9px] font-bold rounded">
-                  {currentUser?.isGuest ? 'GUEST' : t('verified')}
+                  {currentUser?.phoneNumber ? 'PHONE VERIFIED' : t('verified')}
                 </span>
               </div>
               <span className="font-mono text-xs text-[#c5c9ac] truncate">
-                {currentUser?.email || t('barterTagline')}
+                {currentUser?.phoneNumber || currentUser?.email || t('barterTagline')}
               </span>
               <span className="font-mono text-[11px] text-[#caf300] mt-0.5">
                 {t('defaultSpot')} {currentHub.name}
@@ -92,18 +94,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div className="p-2.5 rounded-lg bg-[#131315] border border-white/5 flex flex-col gap-1.5">
             <div className="flex items-center justify-between font-mono text-[10px]">
               <span className="text-[#caf300] font-bold uppercase">
-                {t('rankProgress')} {level} → {level + 1}
+                {language === 'ar' ? rankInfo.currentTier.titleAr : rankInfo.currentTier.titleEn} (LVL {rankInfo.level})
               </span>
-              <span className="text-[#c5c9ac]">{100 - nextLevelProgress} {t('toNextRank')}</span>
+              <span className="text-[#c5c9ac]">
+                {rankInfo.nextTier ? `${rankInfo.pointsToNext} ${t('toNextRank')}` : 'MAX LEVEL'}
+              </span>
             </div>
             <div className="w-full h-2 rounded-full bg-[#201f21] overflow-hidden">
               <div
                 className="h-full bg-[#caf300] transition-all duration-500"
-                style={{ width: `${Math.max(12, nextLevelProgress)}%` }}
+                style={{ width: `${Math.max(8, rankInfo.progressPercent)}%` }}
               />
             </div>
             <span className="font-mono text-[9.5px] text-[#8f9378]">
-              {t('zeroPenalty')}
+              ⚡ {language === 'ar' ? rankInfo.currentTier.perkAr : rankInfo.currentTier.perkEn}
             </span>
           </div>
 
@@ -112,7 +116,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div className="p-2 bg-[#1c1b1d] rounded-lg border border-white/5">
               <span className="text-[10px] text-[#c5c9ac] uppercase block">{t('swapsCount')}</span>
               <span className="text-base font-bold text-white">{completedSwapsCount}</span>
-              <span className="text-[9px] text-[#caf300] block">★ 4.9</span>
+              <span className="text-[9px] text-[#caf300] block">
+                {completedSwapsCount > 0 ? '★ 5.0' : 'NEW'}
+              </span>
             </div>
             <div className="p-2 bg-[#1c1b1d] rounded-lg border border-white/5">
               <span className="text-[10px] text-[#c5c9ac] uppercase block">{t('trustScore')}</span>
@@ -121,8 +127,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
             <div className="p-2 bg-[#1c1b1d] rounded-lg border border-white/5">
               <span className="text-[10px] text-[#c5c9ac] uppercase block">Saved</span>
-              <span className="text-base font-bold text-white">14.2k</span>
-              <span className="text-[9px] text-[#c5c9ac] block">{t('savedVsRetail')}</span>
+              <span className="text-base font-bold text-white">
+                {totalSavedAmount && totalSavedAmount > 0
+                  ? totalSavedAmount >= 1000
+                    ? `${(totalSavedAmount / 1000).toFixed(1)}k`
+                    : `${totalSavedAmount}`
+                  : '0'}
+              </span>
+              <span className="text-[9px] text-[#c5c9ac] block">EGP vs Retail</span>
             </div>
           </div>
         </div>
@@ -497,73 +509,51 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <PWAInstallButton />
         </section>
 
-        {/* Closet & Account Session Controls */}
-        <section className="p-3.5 rounded-xl bg-[#201f21] border border-[#26262e] flex flex-col gap-2.5 shadow-sm">
-          <div className="flex items-center justify-between font-mono text-xs">
-            <span className="text-white font-bold uppercase">// CLOSET &amp; ACCOUNT</span>
+        {/* Account Session Controls */}
+        <section className="p-3.5 rounded-xl bg-[#201f21] border border-[#26262e] flex flex-col gap-2.5 shadow-sm font-mono">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-white font-bold uppercase">// ACCOUNT SESSION</span>
             <span className="text-[#8f9378] text-[10px]">
-              {currentUser ? 'Signed In' : 'Local Session'}
+              {currentUser?.phoneNumber || 'Verified Phone'}
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5 font-mono text-[9.5px]">
-            {onClearDemoCloset && (
-              <button
-                type="button"
-                onClick={() => {
-                  soundFX.playClick();
-                  onClearDemoCloset();
-                }}
-                className="py-2 px-2 rounded-xl bg-[#131315] hover:bg-[#2a2a2c] text-[#caf300] border border-[#caf300]/30 font-bold uppercase cursor-pointer transition-colors"
-              >
-                {t('freshCloset')}
-              </button>
-            )}
-            {onResetDemoData && (
-              <button
-                type="button"
-                onClick={() => {
-                  soundFX.playClick();
-                  onResetDemoData();
-                }}
-                className="py-2 px-2 rounded-xl bg-[#131315] hover:bg-[#2a2a2c] text-[#c5c9ac] hover:text-white border border-white/10 font-bold uppercase cursor-pointer transition-colors"
-              >
-                {t('restoreDemo')}
-              </button>
-            )}
-            {onSignOut && (
-              <button
-                type="button"
-                onClick={() => {
-                  soundFX.playClick();
-                  onSignOut();
-                }}
-                className="py-2 px-2 rounded-xl bg-[#131315] hover:bg-red-500/20 text-[#8f9378] hover:text-red-300 border border-white/10 font-bold uppercase cursor-pointer transition-colors"
-              >
-                {t('switchUser')}
-              </button>
-            )}
-          </div>
-
-          {/* Admin Moderation Desk Link */}
-          <div className="pt-2 border-t border-white/5">
-            <a
-              href="/admin"
-              target="_blank"
-              rel="noopener noreferrer"
+          {onSignOut && (
+            <button
+              type="button"
               onClick={() => {
                 soundFX.playClick();
                 triggerHaptic('medium');
+                onSignOut();
               }}
-              className="w-full py-2.5 px-3 rounded-xl bg-[#0d0c0f] hover:bg-[#1a191f] text-[#caf300] border border-[#caf300]/30 font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-all"
+              className="w-full py-2.5 px-3 rounded-xl bg-[#131315] hover:bg-red-500/20 text-[#8f9378] hover:text-red-300 border border-white/10 text-xs font-bold uppercase cursor-pointer transition-colors flex items-center justify-center gap-2 active:scale-98"
             >
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
-                <span>{language === 'ar' ? 'لوحة تحكم الإدارة (ADMIN DESK)' : 'ADMIN COMMAND DESK'}</span>
-              </div>
-              <span className="text-[10px] text-[#8f9378]">PIN: 2026 ↗</span>
-            </a>
-          </div>
+              <span className="material-symbols-outlined text-[16px]">logout</span>
+              <span>{language === 'ar' ? 'تسجيل الخروج من الحساب' : 'SIGN OUT'}</span>
+            </button>
+          )}
+
+          {/* Admin Moderation Desk: STRICTLY FOR AUTHORIZED SYSTEM ADMINS ONLY */}
+          {(currentUser?.role === 'admin' || currentUser?.isAdmin === true) && (
+            <div className="pt-2 border-t border-white/5">
+              <a
+                href="/admin"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  soundFX.playClick();
+                  triggerHaptic('medium');
+                }}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#0d0c0f] hover:bg-[#1a191f] text-[#caf300] border border-[#caf300]/30 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-all"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+                  <span>{language === 'ar' ? 'لوحة تحكم الإدارة (ADMIN DESK)' : 'ADMIN COMMAND DESK'}</span>
+                </div>
+                <span className="text-[10px] text-[#8f9378]">ADMIN ONLY ↗</span>
+              </a>
+            </div>
+          )}
         </section>
       </div>
     </main>

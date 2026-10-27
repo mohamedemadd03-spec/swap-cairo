@@ -1389,7 +1389,7 @@ app.post('/api/auth/login', (req, res) => {
     }
 
     const bannedHandles = dbState.bannedHandles || [];
-    if (user.isBanned || bannedHandles.includes(user.handle.toLowerCase()) || bannedHandles.includes(user.email.toLowerCase())) {
+    if (user.isBanned || bannedHandles.includes(user.handle.toLowerCase()) || (user.email && bannedHandles.includes(user.email.toLowerCase()))) {
       return res.status(403).json({
         success: false,
         error: `تم حظر هذا الحساب نهائياً: ${user.banReason || 'مخالفة معايير الأمان ورفع محتوى غير مطابق'}`
@@ -1677,7 +1677,7 @@ app.post('/api/admin/ban-user', (req, res) => {
 
   // Update user record if exists
   const updatedUsers = users.map((u) => {
-    if (u.handle.toLowerCase() === normHandle || u.email.toLowerCase() === normHandle) {
+    if (u.handle.toLowerCase() === normHandle || (u.email && u.email.toLowerCase() === normHandle)) {
       return {
         ...u,
         isBanned: true,

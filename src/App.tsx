@@ -72,7 +72,7 @@ export default function App() {
         garments: INITIAL_GARMENTS,
         wardrobe: INITIAL_WARDROBE,
         offers: ACTIVE_SWAP_OFFERS,
-        userTrustPoints: 450,
+        userTrustPoints: 50,
         preferredHubId: HUB_LOCATIONS[0].id,
       }),
     []
@@ -1157,14 +1157,15 @@ export default function App() {
 
   const handleScanBarcodeSuccess = (offerId: string, fitCheckPhoto?: string) => {
     const completedOffer = offers.find((o) => o.id === offerId);
-    setUserTrustPoints((prev) => prev + 50);
+    // Award +75 Trust Points for completing the in-person handshake
+    setUserTrustPoints((prev) => prev + 75);
     setOffers((prev) =>
       prev.map((o) =>
         o.id === offerId
           ? {
               ...o,
               status: 'completed',
-              trustPointsEarned: 50,
+              trustPointsEarned: 75,
               trustPointsAwarded: true,
               ...(fitCheckPhoto ? { fitCheckPhoto, fitCheckTimestamp: new Date().toLocaleDateString() } : {}),
             }
@@ -1213,8 +1214,23 @@ export default function App() {
     }
   };
 
+  const handleRatePartner = (offerId: string, rating: number) => {
+    if (rating >= 5) {
+      // Award +25 bonus trust points for 5-star trade completion
+      setUserTrustPoints((prev) => prev + 25);
+      telemetryService.trackEvent('trade_rated', {
+        summaryAr: `قيّم التبادل بـ 5 نجوم (+25 نقطة ثقة)`,
+        summaryEn: `Rated trade 5 stars (+25 Trust Points)`,
+        userHandle: currentUser?.displayName || '@swapper_cairo',
+        metadata: { offerId, rating },
+      });
+    }
+  };
+
   const handleAddItem = (newItem: WardrobeItem) => {
     setWardrobe((prev) => [newItem, ...prev]);
+    // Award +15 Trust Points for expanding closet and listing pieces
+    setUserTrustPoints((prev) => prev + 15);
 
     telemetryService.trackEvent('view_item', {
       summaryAr: `أضاف قطعة جديدة للدولاب: ${newItem.title}`,
@@ -1222,6 +1238,11 @@ export default function App() {
       userHandle: currentUser?.displayName || '@swapper_cairo',
       metadata: { title: newItem.title, value: newItem.value },
     });
+
+    const userHandle = currentUser?.handle
+      ? (currentUser.handle.startsWith('@') ? currentUser.handle : `@${currentUser.handle}`)
+      : (currentUser?.displayName ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '_')}` : '@swapper_cairo');
+    const completedCount = offers.filter((o) => o.status === 'completed').length;
 
     // Also publish the uploaded piece to the neighborhood feed
     const newFeedGarment: Garment = {
@@ -1243,11 +1264,11 @@ export default function App() {
       description: newItem.description || `Authentic ${newItem.title}. Ready for 1-to-1 barter.`,
       category: newItem.category || 'tees',
       owner: {
-        name: currentUser?.displayName || 'You (@youssef_fits)',
-        handle: (currentUser?.displayName || 'youssef_fits').toLowerCase().replace(/\s+/g, '_'),
-        isPro: true,
-        rating: 4.9,
-        swapCount: 24,
+        name: currentUser?.displayName || 'You',
+        handle: userHandle,
+        isPro: completedCount >= 2,
+        rating: 5.0,
+        swapCount: completedCount,
         avatarUrl:
           currentUser?.photoURL ||
           'https://lh3.googleusercontent.com/aida-public/AB6AXuDiBFlwRfyYNXXzMMHog4cnQQF4aB7aMTx6jmYgc1oqDyInrgqUHMU_dEBicHujxi6YICVBf-I-dChd_1HAp5YJG5jmU24PI08rtPjdiQOxaFyGGJLHPgqfAMdWprP8Z8Ar7uBKcTHyORErqdcBr_XjOMJ_CLTid-_SeoHMjHqi_pkw1dXC3dZWEKid0tRCavzL4tn8mVFj3sIxSjv6TIMzCDbGoHRiZkTwG8vDF1ZxorcBHjzHnUVq',
@@ -1495,6 +1516,7 @@ export default function App() {
           onMarkFinalOffer={handleMarkFinalOffer}
           onSendMessage={handleSendMessage}
           onScanBarcodeSuccess={handleScanBarcodeSuccess}
+          onRatePartner={handleRatePartner}
           onNavigateToVault={() => setActiveTab('closet')}
           onNavigateToDiscover={() => setActiveTab('discover')}
         />
@@ -1512,10 +1534,11 @@ export default function App() {
           }}
           userTrustPoints={userTrustPoints}
           currentUser={currentUser}
-          completedSwapsCount={24 + offers.filter((o) => o.status === 'completed').length}
+          completedSwapsCount={offers.filter((o) => o.status === 'completed').length}
           completedOffers={offers.filter((o) => o.status === 'completed' || o.status === 'accepted')}
-          onClearDemoCloset={handleClearDemoCloset}
-          onResetDemoData={handleResetDemoData}
+          totalSavedAmount={offers
+            .filter((o) => o.status === 'completed')
+            .reduce((sum, o) => sum + (o.theirItem.value || 0), 0)}
           onSignOut={() => {
             handleSignOut();
             window.localStorage.removeItem('swap_launch_auth_completed');

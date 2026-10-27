@@ -272,6 +272,7 @@ export type TelemetryEventType =
   | 'offer_created'
   | 'offer_countered'
   | 'handshake_completed'
+  | 'trade_rated'
   | 'fit_check_uploaded'
   | 'auth_state_change'
   | 'hub_changed';

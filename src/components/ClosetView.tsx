@@ -20,11 +20,9 @@ export const ClosetView: React.FC<ClosetViewProps> = ({
   onSelectItem,
   onRemoveItem,
   onUpdateItemValue,
-  onClearDemoCloset,
 }) => {
   const { t } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const hasDemoSeedItems = wardrobe.some((w) => ['w1', 'w2', 'w3', 'w4'].includes(w.id));
 
   const categories = [
     { id: 'all', label: `${t('allCategories')} (${wardrobe.length})` },
@@ -63,21 +61,6 @@ export const ClosetView: React.FC<ClosetViewProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            {hasDemoSeedItems && onClearDemoCloset && (
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('medium');
-                  soundFX.playClick();
-                  onClearDemoCloset();
-                }}
-                title="Remove demo seed clothes and start with your own closet"
-                className="px-2.5 py-2 rounded-xl font-mono text-[9.5px] uppercase font-bold bg-[#201f21] hover:bg-red-500/15 text-[#c5c9ac] hover:text-red-300 border border-white/10 transition-colors cursor-pointer"
-              >
-                {t('clearDemo')}
-              </button>
-            )}
-
             <button
               type="button"
               onClick={() => {

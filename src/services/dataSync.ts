@@ -1,11 +1,11 @@
 import { Garment, WardrobeItem, SwapOffer } from '../types/swap';
 
 const STORAGE_KEYS = {
-  GARMENTS: 'swap_prod_v1_garments',
-  WARDROBE: 'swap_prod_v1_wardrobe',
-  OFFERS: 'swap_prod_v1_offers',
-  TRUST_POINTS: 'swap_prod_v1_trust_points',
-  HUB_ID: 'swap_prod_v1_hub_id',
+  GARMENTS: 'swap_prod_v2_garments',
+  WARDROBE: 'swap_prod_v2_wardrobe',
+  OFFERS: 'swap_prod_v2_offers',
+  TRUST_POINTS: 'swap_prod_v2_trust_points',
+  HUB_ID: 'swap_prod_v2_hub_id',
 };
 
 export interface PersistedAppState {

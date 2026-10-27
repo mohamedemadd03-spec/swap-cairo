@@ -32,6 +32,7 @@ interface MatchesViewProps {
   onMarkFinalOffer?: (offerId: string) => void;
   onSendMessage: (offerId: string, messageText: string) => void;
   onScanBarcodeSuccess: (offerId: string, fitCheckPhoto?: string) => void;
+  onRatePartner?: (offerId: string, rating: number) => void;
   onNavigateToVault?: () => void;
   onNavigateToDiscover?: () => void;
 }
@@ -52,24 +53,31 @@ export const CAIRO_GPS_HUBS: Array<{
   },
   {
     id: 'hub-cairo-zamalek',
-    name: 'Zamalek Hub (Brazil St 14)',
+    name: 'Holm Café & Bakery Hub',
     address: '14 Brazil Street, Zamalek',
     lat: 30.0609,
     lng: 31.2197,
   },
   {
     id: 'hub-cairo-newcairo',
-    name: 'New Cairo Waterway Station',
+    name: 'The Waterway Station (5A Promenade)',
     address: 'The Waterway, New Cairo',
     lat: 30.0419,
     lng: 31.4758,
   },
   {
     id: 'hub-cairo-korba',
-    name: 'Heliopolis Korba Hub',
+    name: 'Heliopolis Korba Heritage Hub',
     address: 'Baghdad Street, Korba',
     lat: 30.0911,
     lng: 31.3255,
+  },
+  {
+    id: 'hub-cairo-zayed',
+    name: 'Arkan Plaza Hub (West Cairo)',
+    address: 'Arkan Plaza, 26th of July Corridor, Sheikh Zayed',
+    lat: 30.0163,
+    lng: 30.9850,
   },
   {
     id: 'hub-cairo-lockers',
@@ -111,6 +119,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
   onEditOffer,
   onSendMessage,
   onScanBarcodeSuccess,
+  onRatePartner,
   onNavigateToDiscover,
 }) => {
   const { t, language } = useLanguage();
@@ -1591,6 +1600,9 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                     type="button"
                     onClick={() => {
                       triggerHaptic('light');
+                      if (starRating && onRatePartner && barcodeTargetOffer) {
+                        onRatePartner(barcodeTargetOffer.id, starRating);
+                      }
                       setStarRating(null);
                       setIsBarcodeModalOpen(false);
                     }}
