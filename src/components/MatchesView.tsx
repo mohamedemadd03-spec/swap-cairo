@@ -437,10 +437,15 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                   <>
                     <button
                       type="button"
-                      onClick={() => onEditOffer?.(activeChatOffer)}
-                      className="px-2.5 py-1.5 rounded-xl bg-[#131315] hover:bg-[#2a2a2c] text-[#c5c9ac] hover:text-white font-mono text-[10px] uppercase font-bold border border-white/10 cursor-pointer"
+                      onClick={() => {
+                        soundFX.playClick();
+                        triggerHaptic('light');
+                        onEditOffer?.(activeChatOffer);
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl bg-[#131315] hover:bg-[#2a2a2c] text-[#caf300] hover:text-white font-mono text-[10.5px] uppercase font-bold border border-white/10 flex items-center gap-1 cursor-pointer transition-all active:scale-95"
                     >
-                      {t('edit')}
+                      <span className="material-symbols-outlined text-[14px]">edit_note</span>
+                      <span>{t('edit')}</span>
                     </button>
                     <button
                       type="button"
@@ -547,27 +552,6 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                 />
               </div>
             </div>
-
-            {/* Prominent Offer Modification Strip (Always Visible Above Chat Messages) */}
-            {activeChatOffer.status !== 'accepted' && activeChatOffer.status !== 'completed' && onEditOffer && (
-              <div className="pt-2 px-3 pb-2.5 bg-[#141416] border-t border-white/[0.08] flex items-center justify-between gap-2">
-                <span className="font-mono text-[10px] text-[#c5c9ac] truncate">
-                  {language === 'ar' ? 'عايز تغيّر التيشيرت أو تزوّد كاش؟' : 'Want to adjust pieces or cash?'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundFX.playClick();
-                    triggerHaptic('light');
-                    onEditOffer(activeChatOffer);
-                  }}
-                  className="px-3 py-1 rounded-lg bg-[#caf300] hover:bg-[#d9ff1a] text-[#171e00] font-mono text-[10.5px] font-bold uppercase flex items-center gap-1 cursor-pointer transition-all active:scale-95 shrink-0 shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[14px]">edit_note</span>
-                  <span>{language === 'ar' ? 'تعديل العرض الآن' : 'Edit Offer'}</span>
-                </button>
-              </div>
-            )}
 
             {/* Optional Cancel Reason Strip (Only visible when user taps Cancel) */}
             {isCancelDrawerOpen && (
