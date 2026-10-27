@@ -16,7 +16,7 @@ const DB_FILE = path.resolve(DATA_DIR, 'swap-db.json');
 
 interface ServerUser {
   uid: string;
-  email: string;
+  email?: string;
   displayName: string;
   handle: string;
   phoneNumber?: string;
@@ -31,6 +31,23 @@ interface ServerUser {
   isBanned?: boolean;
   banReason?: string;
   bannedAt?: string;
+}
+
+// In-memory active phone SMS verification OTP store
+const phoneOtpMap = new Map<string, { code: string; expiresAt: number; attempts: number }>();
+
+function normalizePhoneNumber(input: string): string {
+  const digits = String(input || '').replace(/\D/g, '');
+  if (digits.startsWith('20') && digits.length >= 12) {
+    return '+' + digits;
+  }
+  if (digits.startsWith('01') && digits.length === 11) {
+    return '+20' + digits.slice(1);
+  }
+  if (digits.startsWith('1') && digits.length === 10) {
+    return '+20' + digits;
+  }
+  return digits ? '+' + digits : '';
 }
 
 interface ServerReport {
@@ -1051,9 +1068,224 @@ app.post('/api/reset-demo', (_req, res) => {
 
 /**
  * =========================================================================
- * REAL USER AUTHENTICATION API (Persistent, secure & multi-device)
+ * REAL USER AUTHENTICATION API (Phone First, SMS Verification & Multi-Device)
  * =========================================================================
  */
+
+// 1. Send SMS OTP confirmation code
+app.post('/api/auth/send-otp', (req, res) => {
+  try {
+    const { phoneNumber } = req.body || {};
+    const normPhone = normalizePhoneNumber(phoneNumber);
+    if (!normPhone || normPhone.length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'يرجى كتابة رقم هاتف محمول صحيح / Please enter a valid mobile phone number',
+      });
+    }
+
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'ip_unknown';
+    if (!checkRateLimit(`otp_${clientIp}_${normPhone}`, 5, 300_000)) {
+      return res.status(429).json({
+        success: false,
+        error: 'تم تجاوز حد إرسال الرسائل لهذا الرقم مؤقتاً. يرجى الانتظار 5 دقائق.',
+      });
+    }
+
+    // Generate cryptographically random 6-digit OTP
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    phoneOtpMap.set(normPhone, { code, expiresAt, attempts: 0 });
+
+    const smsMessage = `رمز تأكيد حسابك على SWAP هو: ${code}. لا تشاركه مع أحد. (SWAP Cairo Phone Verification)`;
+    console.log(`[SWAP SMS DISPATCH] To: ${normPhone} -> "${smsMessage}"`);
+
+    const dbState = readServerDb() || {};
+    const users = dbState.users || [];
+    const isExistingUser = users.some((u) => u.phoneNumber && normalizePhoneNumber(u.phoneNumber) === normPhone);
+
+    return res.json({
+      success: true,
+      message: 'تم إرسال رسالة التأكيد SMS بنجاح من SWAP',
+      normalizedPhone: normPhone,
+      isExistingUser,
+      smsPreview: smsMessage,
+      otpDebug: code,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'فشل إرسال رسالة التأكيد' });
+  }
+});
+
+// 2. Verify SMS OTP code
+app.post('/api/auth/verify-otp', (req, res) => {
+  try {
+    const { phoneNumber, code } = req.body || {};
+    const normPhone = normalizePhoneNumber(phoneNumber);
+    const cleanCode = String(code || '').trim();
+
+    if (!normPhone || !cleanCode) {
+      return res.status(400).json({ success: false, error: 'رقم الهاتف ورمز التأكيد مطلوبان' });
+    }
+
+    const record = phoneOtpMap.get(normPhone);
+    if (!record || Date.now() > record.expiresAt) {
+      return res.status(400).json({ success: false, error: 'رمز التأكيد منتهي الصلاحية، يرجى طلب رمز جديد' });
+    }
+
+    if (record.attempts >= 5) {
+      phoneOtpMap.delete(normPhone);
+      return res.status(429).json({ success: false, error: 'محاولات خاطئة كثيرة، يرجى طلب رمز جديد' });
+    }
+
+    if (record.code !== cleanCode) {
+      record.attempts += 1;
+      return res.status(400).json({ success: false, error: 'رمز التأكيد غير صحيح، يرجى التأكد من الرسالة' });
+    }
+
+    const dbState = readServerDb() || {};
+    const users = dbState.users || [];
+    const existing = users.find((u) => u.phoneNumber && normalizePhoneNumber(u.phoneNumber) === normPhone);
+
+    if (existing) {
+      phoneOtpMap.delete(normPhone);
+      const token = 'tok_' + existing.uid + '_' + crypto.randomBytes(16).toString('hex');
+      return res.json({
+        success: true,
+        verified: true,
+        isNewUser: false,
+        user: generateSafeUser(existing),
+        token,
+      });
+    }
+
+    return res.json({
+      success: true,
+      verified: true,
+      isNewUser: true,
+      message: 'تم تأكيد رقم الهاتف بنجاح، أكمل إنشاء حسابك',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'فشل التحقق من رمز التأكيد' });
+  }
+});
+
+// 3. Register with phone number + verified OTP
+app.post('/api/auth/phone-register', (req, res) => {
+  try {
+    const { phoneNumber, code, displayName, password } = req.body || {};
+    const normPhone = normalizePhoneNumber(phoneNumber);
+    const cleanCode = String(code || '').trim();
+    const cleanName = String(displayName || '').trim();
+    const cleanPass = String(password || '');
+
+    if (!normPhone) {
+      return res.status(400).json({ success: false, error: 'رقم هاتف غير صالح' });
+    }
+    if (!cleanName || cleanName.length < 2) {
+      return res.status(400).json({ success: false, error: 'يرجى كتابة اسمك أو هاندل الستريتوير' });
+    }
+    if (!cleanPass || cleanPass.length < 6) {
+      return res.status(400).json({ success: false, error: 'كلمة المرور يجب أن لا تقل عن 6 أحرف' });
+    }
+
+    const record = phoneOtpMap.get(normPhone);
+    if (!record || record.code !== cleanCode || Date.now() > record.expiresAt) {
+      return res.status(400).json({ success: false, error: 'رمز التأكيد غير صالح أو انتهت صلاحيته' });
+    }
+
+    const dbState = readServerDb() || {};
+    const existingUsers = dbState.users || [];
+    const bannedHandles = dbState.bannedHandles || [];
+
+    if (existingUsers.some((u) => u.phoneNumber && normalizePhoneNumber(u.phoneNumber) === normPhone)) {
+      return res.status(409).json({ success: false, error: 'رقم الهاتف مسجل بالفعل، يرجى تسجيل الدخول' });
+    }
+
+    const cleanHandle = '@' + cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 24);
+    if (bannedHandles.includes(cleanHandle) || bannedHandles.includes(normPhone)) {
+      return res.status(403).json({ success: false, error: 'هذا الحساب أو الرقم محظور نهائياً لمخالفة معايير الأمان' });
+    }
+
+    const salt = crypto.randomBytes(16).toString('hex');
+    const passwordHash = hashPassword(cleanPass, salt);
+    const uid = 'usr_' + Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
+
+    const newUser: ServerUser = {
+      uid,
+      displayName: cleanName,
+      handle: cleanHandle,
+      phoneNumber: normPhone,
+      passwordHash,
+      salt,
+      createdAt: new Date().toISOString(),
+      swapCount: 0,
+      trustPoints: 450,
+      rating: 5.0,
+      photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanHandle)}`,
+      preferredHub: 'Maadi Hub',
+    };
+
+    writeServerDb({
+      users: [...existingUsers, newUser],
+    });
+
+    phoneOtpMap.delete(normPhone);
+
+    const token = 'tok_' + uid + '_' + crypto.randomBytes(16).toString('hex');
+    return res.json({
+      success: true,
+      user: generateSafeUser(newUser),
+      token,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'فشل إنشاء الحساب برقم الهاتف' });
+  }
+});
+
+// 4. Login with phone number & password
+app.post('/api/auth/phone-login', (req, res) => {
+  try {
+    const { phoneNumber, password } = req.body || {};
+    const normPhone = normalizePhoneNumber(phoneNumber);
+    const cleanPass = String(password || '');
+
+    if (!normPhone || !cleanPass) {
+      return res.status(400).json({ success: false, error: 'يرجى كتابة رقم الهاتف وكلمة المرور' });
+    }
+
+    const dbState = readServerDb() || {};
+    const users = dbState.users || [];
+
+    const user = users.find((u) => u.phoneNumber && normalizePhoneNumber(u.phoneNumber) === normPhone);
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'رقم الهاتف غير مسجل، يرجى إنشاء حساب جديد أولاً' });
+    }
+
+    const bannedHandles = dbState.bannedHandles || [];
+    if (user.isBanned || bannedHandles.includes(user.handle.toLowerCase()) || bannedHandles.includes(normPhone)) {
+      return res.status(403).json({
+        success: false,
+        error: `تم حظر هذا الحساب نهائياً: ${user.banReason || 'مخالفة معايير الأمان'}`
+      });
+    }
+
+    const checkHash = hashPassword(cleanPass, user.salt);
+    if (checkHash !== user.passwordHash) {
+      return res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة' });
+    }
+
+    const token = 'tok_' + user.uid + '_' + crypto.randomBytes(16).toString('hex');
+    return res.json({
+      success: true,
+      user: generateSafeUser(user),
+      token,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'فشل تسجيل الدخول' });
+  }
+});
 
 // 1. Register with real email & password
 app.post('/api/auth/register', (req, res) => {

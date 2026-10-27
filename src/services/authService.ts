@@ -1,6 +1,6 @@
 export interface AuthUser {
   uid: string;
-  email: string;
+  email?: string;
   displayName: string;
   handle: string;
   phoneNumber?: string;
@@ -22,7 +22,14 @@ export const authService = {
     if (typeof window === 'undefined') return null;
     try {
       const raw = localStorage.getItem(STORAGE_KEYS.USER);
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      const user = JSON.parse(raw);
+      // Automatically reject old guest sessions so everyone must sign up with phone
+      if (user?.isGuest) {
+        this.logout();
+        return null;
+      }
+      return user;
     } catch {
       return null;
     }
@@ -32,12 +39,96 @@ export const authService = {
     if (typeof window === 'undefined') return;
     try {
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      localStorage.setItem('swap_launch_auth_done_v1', 'true');
       if (token) {
         localStorage.setItem(STORAGE_KEYS.TOKEN, token);
       }
     } catch (err) {
       console.warn('Could not store auth session:', err);
     }
+  },
+
+  async sendOtp(phoneNumber: string): Promise<{
+    success: boolean;
+    message: string;
+    normalizedPhone: string;
+    isExistingUser: boolean;
+    smsPreview?: string;
+    otpDebug?: string;
+  }> {
+    const res = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data?.error || 'فشل إرسال رمز التأكيد SMS');
+    }
+    return data;
+  },
+
+  async verifyOtp(phoneNumber: string, code: string): Promise<{
+    success: boolean;
+    verified: boolean;
+    isNewUser: boolean;
+    user?: AuthUser;
+    token?: string;
+  }> {
+    const res = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber, code }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data?.error || 'رمز التأكيد غير صحيح');
+    }
+
+    if (data.user) {
+      this.setStoredUser(data.user, data.token);
+    }
+
+    return data;
+  },
+
+  async phoneRegister(
+    phoneNumber: string,
+    code: string,
+    displayName: string,
+    password: string
+  ): Promise<AuthUser> {
+    const res = await fetch('/api/auth/phone-register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber, code, displayName, password }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data?.error || 'فشل إنشاء الحساب برقم الهاتف');
+    }
+
+    this.setStoredUser(data.user, data.token);
+    return data.user as AuthUser;
+  },
+
+  async phoneLogin(phoneNumber: string, password: string): Promise<AuthUser> {
+    const res = await fetch('/api/auth/phone-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber, password }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data?.error || 'رقم الهاتف أو كلمة المرور غير صحيحة');
+    }
+
+    this.setStoredUser(data.user, data.token);
+    return data.user as AuthUser;
   },
 
   async register(
@@ -71,36 +162,6 @@ export const authService = {
     const data = await res.json();
     if (!res.ok || !data.success) {
       throw new Error(data?.error || 'البيانات غير صحيحة / Invalid credentials');
-    }
-
-    this.setStoredUser(data.user, data.token);
-    return data.user as AuthUser;
-  },
-
-  async loginAsGuest(nickname = 'Cairo Guest'): Promise<AuthUser> {
-    const res = await fetch('/api/auth/guest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nickname }),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      // Offline fallback
-      const rand = Math.floor(1000 + Math.random() * 9000);
-      const fallbackUser: AuthUser = {
-        uid: 'gst_' + Date.now().toString(36) + '_' + rand,
-        email: `guest_${rand}@swap.vault`,
-        displayName: nickname,
-        handle: `@guest_${rand}`,
-        isGuest: true,
-        trustPoints: 250,
-        rating: 5.0,
-        swapCount: 0,
-        photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=guest_${rand}`,
-      };
-      this.setStoredUser(fallbackUser, 'tok_guest_' + rand);
-      return fallbackUser;
     }
 
     this.setStoredUser(data.user, data.token);

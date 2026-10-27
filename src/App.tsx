@@ -79,15 +79,16 @@ export default function App() {
   );
 
   const [currentUser, setCurrentUser] = useState<any | null>(() => {
-    return authService.getStoredUser();
+    const user = authService.getStoredUser();
+    if (user?.isGuest) {
+      authService.logout();
+      return null;
+    }
+    return user;
   });
   const [hasCompletedLaunchAuth, setHasCompletedLaunchAuth] = useState<boolean>(() => {
-    if (authService.getStoredUser()) return true;
-    try {
-      return localStorage.getItem('swap_launch_auth_done_v1') === 'true';
-    } catch {
-      return false;
-    }
+    const user = authService.getStoredUser();
+    return Boolean(user && !user.isGuest);
   });
   const [hasSelectedLanguage, setHasSelectedLanguage] = useState<boolean>(() => {
     try {
@@ -1365,7 +1366,7 @@ export default function App() {
     <div className="w-full min-h-dvh bg-[#131315] text-[#ededed] font-body selection:bg-[#d4ff00] selection:text-[#0d0e12] flex flex-col justify-between overflow-x-hidden">
       {/* First-Launch Real Brutalist Authentication Gate */}
       <AuthGateModal
-        isOpen={!currentUser && !hasCompletedLaunchAuth}
+        isOpen={!currentUser}
         onAuthSuccess={handleAuthSuccess}
       />
 
